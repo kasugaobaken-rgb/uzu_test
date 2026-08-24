@@ -127,10 +127,12 @@ $("bJoin").onclick = async () => {
 };
 
 function fresh(){
-  const up = sh(LAYERS.up), deal = up.splice(0,25);
+  // 3層（層の中だけシャッフル）を重ねてから、上から25枚を配る
+  const stack = [...sh(LAYERS.up), ...sh(LAYERS.mid), ...sh(LAYERS.low)];
+  const deal = stack.splice(0,25);
   return {
     phase:"lobby", round:1, pairs:0, ti:0, endAt:0, host:null,
-    deck:[...up, ...sh(LAYERS.mid), ...sh(LAYERS.low)],
+    deck:stack,
     order:[0,1,2,3,4], named:[], seats:{}, pend:null, offers:{}, reveal:null,
     msg:"全員が席に着いたら、PC1の端末で「開始」を押してください。", logs:[],
     ps:[0,1,2,3,4].map(i=>({hand:deal.slice(i*5,i*5+5), info:[], dice:0, ovr:false}))
