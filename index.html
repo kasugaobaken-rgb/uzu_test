@@ -106,6 +106,7 @@ const sh = a => { a=[...a]; for(let i=a.length-1;i>0;i--){const j=R(i+1);[a[i],a
 const arr = x => !x ? [] : Array.isArray(x) ? x.filter(v=>v!=null) : Object.values(x);
 
 let db, roomRef, S=null, mySeat=null, code=null, sel=[], localMode=null, tick=null;
+const SOLO = new URLSearchParams(location.search).has("solo");
 
 // ---------- 起動 ----------
 try {
@@ -123,6 +124,10 @@ $("bJoin").onclick = async () => {
   const snap = await get(roomRef);
   if (!snap.exists()) await set(roomRef, fresh());
   onValue(roomRef, s => { S = s.val(); render(); });
+  if (SOLO){ // 1台で全席を動かす
+    await update(roomRef, { seats:{0:"solo",1:"solo",2:"solo",3:"solo",4:"solo"}, host:0 });
+    mySeat = 0; render(); return;
+  }
   $("seatBox").classList.remove("hide");
 };
 
@@ -144,8 +149,14 @@ const wr = o => update(roomRef, o);
 function push(o, t, cls){ o.logs = [ {t, c:cls||""}, ...arr(S.logs) ].slice(0,40); }
 
 // ---------- 描画 ----------
+let lastTurnKey = null;
 function render(){
   if (!S) return;
+  // ソロ確認モードでは、手番が変わったら自動でその席に切り替える（手動切替も可）
+  if (SOLO && mySeat!==null && S.phase==="draw" && S.pend){
+    const k = S.round+"-"+S.ti;
+    if (k !== lastTurnKey){ lastTurnKey = k; mySeat = S.pend.by; sel = []; }
+  }
   // 席選択
   $("seats").innerHTML = P5.map((n,i)=>{
     const taken = S.seats && S.seats[i];
@@ -155,7 +166,8 @@ function render(){
   if (mySeat===null) return;
 
   $("lobby").classList.add("hide"); $("game").classList.remove("hide");
-  $("rc").innerHTML = `<b>${code}</b> / ${P5[mySeat]}`;
+  renderSolo();
+  $("rc").innerHTML = `<b>${code}</b> / ${P5[mySeat]}${SOLO?" <span class='hint'>SOLO</span>":""}`;
   $("rd").textContent = S.round; $("dk").textContent = arr(S.deck).length;
   $("pr").textContent = S.pairs;
   $("ph").textContent = {lobby:"待機",nego:"交渉",draw:"引き",wait:"ラウンド間",over:"終了"}[S.phase]||"";
@@ -212,8 +224,24 @@ async function takeSeat(i){
   });
   mySeat = i; sel = []; render();
 }
-function myId(){ let v = localStorage.getItem("uzuid"); if(!v){ v = Math.random().toString(36).slice(2,10); localStorage.setItem("uzuid", v);} return v; }
-const isHost = () => S && S.host === mySeat;
+// sessionStorage はタブごとに独立するので、1台で複数タブを開けば別プレイヤーとして扱える
+function myId(){ let v = sessionStorage.getItem("uzuid"); if(!v){ v = Math.random().toString(36).slice(2,10); sessionStorage.setItem("uzuid", v);} return v; }
+const isHost = () => SOLO || (S && S.host === mySeat);
+
+// ---------- ソロ確認モード（?solo=1）----------
+function renderSolo(){
+  if (!SOLO || mySeat===null) return;
+  let bar = document.getElementById("solobar");
+  if (!bar){
+    bar = document.createElement("div");
+    bar.id = "solobar";
+    bar.style.cssText = "display:flex;gap:6px;margin:8px 0;align-items:center;flex-wrap:wrap";
+    $("game").insertBefore(bar, $("msg"));
+  }
+  bar.innerHTML = `<span class="hint" style="letter-spacing:.14em">SOLO</span>` +
+    P5.map((n,i)=>`<button data-s="${i}" class="${i===mySeat?"pri":""}" style="flex:1;min-width:56px;padding:7px 4px;font-size:13px">${n}</button>`).join("");
+  bar.querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{ mySeat=+b.dataset.s; sel=[]; render(); });
+}
 
 // ---------- タイマー ----------
 function startTick(){
