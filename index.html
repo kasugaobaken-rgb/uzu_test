@@ -1,0 +1,494 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>記録照合フェーズ — DEMO</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--bg:#0b0d0f;--pan:#14181c;--ln:#2a3138;--fg:#d8e0e6;--dim:#7c8894;--acc:#5fd3c8;--wrn:#e2643c;--glw:#f0c674}
+html,body{background:var(--bg);color:var(--fg);font-family:"DotGothic16","Hiragino Sans","Yu Gothic",sans-serif;font-size:14px;line-height:1.6}
+body{padding:8px 8px 96px;max-width:760px;margin:0 auto}
+h2{font-size:11px;letter-spacing:.14em;color:var(--dim);font-weight:400;margin:14px 0 6px}
+button{font-family:inherit;font-size:14px;background:#1d242a;color:var(--fg);border:1px solid var(--ln);padding:11px 14px;cursor:pointer;border-radius:2px}
+button:active:not(:disabled){background:#28323a}
+button:disabled{opacity:.3}
+button.pri{background:var(--acc);color:#06110f;border-color:var(--acc);font-weight:700}
+button.dgr{border-color:var(--wrn);color:var(--wrn)}
+input,select{font-family:inherit;font-size:16px;background:#1d242a;color:var(--fg);border:1px solid var(--ln);padding:10px;width:100%;border-radius:2px}
+.hd{position:sticky;top:0;z-index:5;background:var(--bg);padding:6px 0;border-bottom:1px solid var(--ln);display:flex;gap:10px;flex-wrap:wrap;align-items:center;font-size:12px}
+.hd b{color:var(--acc)}
+.tm{font-size:24px;min-width:52px;text-align:right;margin-left:auto}
+.tm.hot{color:var(--wrn)}
+.msg{background:#1a2228;border:1px solid var(--acc);padding:10px 12px;margin:8px 0;font-size:13px;border-radius:2px}
+.msg.w{border-color:var(--wrn);color:#f3b9a3}
+.msg.s{border-color:var(--glw);color:var(--glw)}
+.pcs{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.pc{background:var(--pan);border:1px solid var(--ln);padding:7px;border-radius:2px}
+.pc.act{border-color:var(--acc)}
+.pc.nmd{opacity:.4}
+.pc.tgt{border-color:var(--glw);cursor:pointer}
+.pt{display:flex;justify-content:space-between;font-size:12px;color:var(--acc)}
+.pt .d{color:var(--glw);font-size:15px}
+.pm{font-size:10px;color:var(--dim);margin:1px 0 5px}
+.mn{font-size:10px;border:1px solid var(--ln);background:#10151a;padding:4px 5px;margin-bottom:3px;border-radius:2px;word-break:break-all}
+.mn.bk{color:var(--dim);text-align:center;letter-spacing:.2em;background:#0d1114}
+.mn.tap{cursor:pointer;border-color:var(--glw)}
+.hand{display:grid;grid-template-columns:repeat(2,1fr);gap:6px}
+.cd{border:1px solid var(--ln);background:var(--pan);padding:9px;min-height:148px;display:flex;flex-direction:column;cursor:pointer;position:relative;border-radius:2px}
+.cd.sel{border-color:var(--acc);box-shadow:0 0 0 1px var(--acc) inset}
+.cd.own{border-color:var(--glw);box-shadow:0 0 10px rgba(240,198,116,.22)}
+.ci{font-size:9px;color:var(--dim);letter-spacing:.1em}
+.ck{font-size:10px;letter-spacing:.12em;margin:2px 0 6px}
+.crec .ck{color:#8fb8d8}.cmem .ck{color:#c8a8d8}.ceff .ck{color:var(--wrn)}.cjok .ck{color:#8a8a8a}
+.ct{font-size:11.5px;flex:1}
+.tg{position:absolute;top:6px;right:7px;font-size:10px;color:var(--glw)}
+.log{background:var(--pan);border:1px solid var(--ln);padding:8px;max-height:200px;overflow:auto;font-size:11.5px;border-radius:2px}
+.log>div{padding:3px 0;border-bottom:1px solid #1b2126}
+.log .me{color:var(--acc)}
+.bot{position:fixed;left:0;right:0;bottom:0;background:#0d1114;border-top:1px solid var(--ln);padding:8px;display:flex;gap:6px;justify-content:center;flex-wrap:wrap;z-index:9}
+.bot button{flex:1;min-width:100px;max-width:220px}
+.hint{font-size:11px;color:var(--dim)}
+.lb{max-width:400px;margin:40px auto;display:flex;flex-direction:column;gap:12px}
+.seats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.hide{display:none}
+</style>
+
+<!-- ============ ロビー ============ -->
+<div id="lobby" class="lb">
+  <div style="text-align:center;letter-spacing:.2em;color:var(--acc)">記 録 照 合 フ ェ ー ズ</div>
+  <div class="hint" style="text-align:center">DEMO — 5端末用</div>
+  <div id="lbErr"></div>
+  <input id="code" placeholder="部屋コード（英数4文字）" maxlength="8" autocapitalize="characters">
+  <button id="bJoin" class="pri">この部屋に入る／作る</button>
+  <div id="seatBox" class="hide">
+    <h2>席を選ぶ</h2>
+    <div class="seats" id="seats"></div>
+  </div>
+  <div class="hint">同じ部屋コードを5人で入力してください。席は先着順です。</div>
+</div>
+
+<!-- ============ ゲーム ============ -->
+<div id="game" class="hide">
+  <div class="hd">
+    <span id="rc"></span>
+    <span>R <b id="rd">1</b>/16</span>
+    <span id="ph"></span>
+    <span>山 <b id="dk">0</b></span>
+    <span>成立 <b id="pr">0</b>/25</span>
+    <span class="tm" id="tm">--</span>
+  </div>
+  <div id="msg"></div>
+  <div id="offers"></div>
+  <h2>他の個体（灰＝事件記録は内容公開／■＝伏せ）</h2>
+  <div class="pcs" id="pcs"></div>
+  <h2 id="ht">自分の手札</h2>
+  <div class="hand" id="hand"></div>
+  <h2>情報データ</h2>
+  <div class="log" id="inf"></div>
+  <h2>進行ログ</h2>
+  <div class="log" id="lg"></div>
+  <div class="bot" id="bot"></div>
+</div>
+
+<script src="cards.js"></script>
+<script src="firebase-config.js"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, onValue, set, update, get, runTransaction }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const $ = i => document.getElementById(i);
+const R = n => Math.floor(Math.random()*n);
+const sh = a => { a=[...a]; for(let i=a.length-1;i>0;i--){const j=R(i+1);[a[i],a[j]]=[a[j],a[i]]} return a; };
+const arr = x => !x ? [] : Array.isArray(x) ? x.filter(v=>v!=null) : Object.values(x);
+
+let db, roomRef, S=null, mySeat=null, code=null, sel=[], localMode=null, tick=null;
+
+// ---------- 起動 ----------
+try {
+  if (String(FIREBASE_CONFIG.databaseURL).includes("ここに貼る")) throw new Error("cfg");
+  db = getDatabase(initializeApp(FIREBASE_CONFIG));
+} catch(e) {
+  $("lbErr").innerHTML = '<div class="msg w">firebase-config.js が未設定です。README の手順で Firebase の設定を貼り付けてください。</div>';
+  $("bJoin").disabled = true;
+}
+
+$("bJoin").onclick = async () => {
+  const c = $("code").value.trim().toUpperCase();
+  if (c.length < 2) return;
+  code = c; roomRef = ref(db, "rooms/"+code);
+  const snap = await get(roomRef);
+  if (!snap.exists()) await set(roomRef, fresh());
+  onValue(roomRef, s => { S = s.val(); render(); });
+  $("seatBox").classList.remove("hide");
+};
+
+function fresh(){
+  const up = sh(LAYERS.up), deal = up.splice(0,25);
+  return {
+    phase:"lobby", round:1, pairs:0, ti:0, endAt:0, host:null,
+    deck:[...up, ...sh(LAYERS.mid), ...sh(LAYERS.low)],
+    order:[0,1,2,3,4], named:[], seats:{}, pend:null, offers:{}, reveal:null,
+    msg:"全員が席に着いたら、PC1の端末で「開始」を押してください。", logs:[],
+    ps:[0,1,2,3,4].map(i=>({hand:deal.slice(i*5,i*5+5), info:[], dice:0, ovr:false}))
+  };
+}
+const P5 = ["PC1","PC2","PC3","PC4","PC5"];
+const me = () => S.ps[mySeat];
+const wr = o => update(roomRef, o);
+function push(o, t, cls){ o.logs = [ {t, c:cls||""}, ...arr(S.logs) ].slice(0,40); }
+
+// ---------- 描画 ----------
+function render(){
+  if (!S) return;
+  // 席選択
+  $("seats").innerHTML = P5.map((n,i)=>{
+    const taken = S.seats && S.seats[i];
+    return `<button data-seat="${i}" ${taken&&i!==mySeat?"disabled":""} class="${i===mySeat?"pri":""}">${n}${taken?" ●":""}</button>`;
+  }).join("");
+  [...$("seats").children].forEach(b => b.onclick = () => takeSeat(+b.dataset.seat));
+  if (mySeat===null) return;
+
+  $("lobby").classList.add("hide"); $("game").classList.remove("hide");
+  $("rc").innerHTML = `<b>${code}</b> / ${P5[mySeat]}`;
+  $("rd").textContent = S.round; $("dk").textContent = arr(S.deck).length;
+  $("pr").textContent = S.pairs;
+  $("ph").textContent = {lobby:"待機",nego:"交渉",draw:"引き",wait:"ラウンド間",over:"終了"}[S.phase]||"";
+  $("msg").innerHTML = S.msg ? `<div class="msg ${S.msgC||""}">${S.msg}</div>` : "";
+
+  // 他PC
+  const pend = S.pend, turn = S.phase==="draw" && arr(S.order)[S.ti];
+  $("pcs").innerHTML = P5.map((n,i)=>{
+    if (i===mySeat) return "";
+    const p = S.ps[i], hand = arr(p.hand);
+    const recs = hand.filter(c=>C[c].t==="rec"), hid = hand.filter(c=>C[c].t!=="rec");
+    const isTgt = localMode==="target" && !arr(S.named).includes(i);
+    const isSteal = localMode==="steal" && pend && pend.from===i;
+    const rv = S.reveal && S.reveal.to===mySeat && S.reveal.of===i ? arr(S.reveal.cards) : [];
+    return `<div class="pc ${turn===i?"act":""} ${arr(S.named).includes(i)&&S.phase==="draw"?"nmd":""} ${isTgt?"tgt":""}" ${isTgt?`data-t="${i}"`:""}>
+      <div class="pt"><span>${n}${turn===i?" ◀":""}</span><span class="d">${p.dice||""}</span></div>
+      <div class="pm">手札${hand.length} ／ 情報${arr(p.info).length}${p.ovr?" ／ 優先":""}</div>
+      ${recs.map(c=>`<div class="mn ${isSteal?"tap":""}" ${isSteal?`data-c="${c}"`:""}>${c}｜${C[c].x.slice(0,22)}…</div>`).join("")}
+      ${hid.map((c,k)=>`<div class="mn bk ${isSteal?"tap":""}" ${isSteal?`data-c="${c}"`:""}>${rv.includes(c)?`<span style="color:var(--glw)">${c}｜${C[c].x.slice(0,18)}…</span>`:"■ 伏せ "+(k+1)}</div>`).join("")}
+    </div>`;
+  }).join("");
+  $("pcs").querySelectorAll("[data-t]").forEach(e=>e.onclick=()=>pickTarget(+e.dataset.t));
+  $("pcs").querySelectorAll("[data-c]").forEach(e=>e.onclick=()=>pickCard(e.dataset.c));
+
+  // 自分の手札
+  const hand = arr(me().hand);
+  $("ht").textContent = `自分の手札（${P5[mySeat]}）— 金色＝自分の記憶記録`;
+  $("hand").innerHTML = hand.map(c=>{
+    const d = C[c], own = d.t==="mem" && d.o===P5[mySeat];
+    const k = {rec:"事件記録",mem:"記憶記録",eff:`[${d.ph==="nego"?"交渉":"引き"}] ${d.n}`,jok:"事後通信"}[d.t];
+    return `<div class="cd c${d.t} ${sel.includes(c)?"sel":""} ${own?"own":""}" data-h="${c}">
+      ${own?'<span class="tg">◆</span>':""}<div class="ci">${c}</div><div class="ck">${k}</div><div class="ct">${d.x}</div></div>`;
+  }).join("");
+  $("hand").querySelectorAll("[data-h]").forEach(e=>e.onclick=()=>tapHand(e.dataset.h));
+
+  // 情報・ログ
+  const info = arr(me().info);
+  $("inf").innerHTML = info.length ? info.map((x,i)=>`<div class="${x.f==="自分"?"me":""}">${i+1}. ${x.t}<div class="hint">入手：${x.f}</div></div>`).join("") : '<div class="hint">まだありません</div>';
+  $("lg").innerHTML = arr(S.logs).map(l=>`<div class="${l.c}">${l.t}</div>`).join("");
+
+  renderOffers(); renderBottom(); startTick();
+}
+
+// ---------- 席 ----------
+async function takeSeat(i){
+  await runTransaction(roomRef, s => {
+    if (!s) return s;
+    s.seats = s.seats || {};
+    if (s.seats[i] && s.seats[i] !== myId()) return;
+    Object.keys(s.seats).forEach(k => { if (s.seats[k]===myId()) delete s.seats[k]; });
+    s.seats[i] = myId();
+    if (s.host === null || s.host === undefined) s.host = i;
+    return s;
+  });
+  mySeat = i; sel = []; render();
+}
+function myId(){ let v = localStorage.getItem("uzuid"); if(!v){ v = Math.random().toString(36).slice(2,10); localStorage.setItem("uzuid", v);} return v; }
+const isHost = () => S && S.host === mySeat;
+
+// ---------- タイマー ----------
+function startTick(){
+  if (tick) return;
+  tick = setInterval(() => {
+    if (!S || !S.endAt) { $("tm").textContent="--"; $("tm").className="tm"; return; }
+    const s = Math.max(0, Math.ceil((S.endAt - Date.now())/1000));
+    $("tm").textContent = s; $("tm").className = "tm" + (s<=5?" hot":"");
+    if (s===0 && isHost()) onTimeout();
+  }, 300);
+}
+
+// ---------- 進行 ----------
+function beginRound(){
+  const o = {}; const ps = S.ps.map(p=>({...p, dice:R(6)+1}));
+  const order = [0,1,2,3,4].sort((a,b)=>(ps[b].ovr?100:0)-(ps[a].ovr?100:0) || ps[b].dice-ps[a].dice);
+  ps.forEach(p=>p.ovr=false);
+  o.ps=ps; o.order=order; o.named=[]; o.ti=0; o.phase="nego"; o.pend=null; o.offers={}; o.reveal=null;
+  o.endAt = Date.now()+60000;
+  o.msg = "<b>交渉ターン（60秒）</b>　カードは1対1で交換。情報データは何件でも渡せます。約束を守る義務はありません。"; o.msgC="";
+  push(o, `<b>R${S.round}</b> 抽選 → ` + order.map(i=>P5[i]+"("+ps[i].dice+")").join(" ／ "));
+  wr(o);
+}
+function toDraw(){
+  const o = { phase:"draw", ti:0, offers:{}, reveal:null };
+  beginTurnInto(o, 0); wr(o);
+}
+function beginTurnInto(o, ti){
+  const seat = arr(S.order)[ti];
+  o.ti = ti; o.pend = { by:seat, stage:"target" };
+  o.endAt = Date.now()+20000;
+  o.msg = `<b>引きターン</b>　${P5[seat]} の手番（20秒）　相手を指名 → 1枚引く → 1枚渡す`;
+  o.msgC = "";
+}
+function endTurn(o){
+  const ti = S.ti + 1;
+  if (ti >= 5) {
+    if (S.round >= 16 || S.pairs >= 25) return finish(o);
+    o.round = S.round + 1; o.phase = "nego"; o.pend = null; o.endAt = 0;
+    o.msg = "ラウンド終了。ホストが「次のラウンド」を押してください。"; o.msgC = "";
+    // 次ラウンドの抽選は beginRound で行う
+    o.phase = "wait";
+  } else beginTurnInto(o, ti);
+}
+function finish(o){
+  o.phase="over"; o.endAt=0; o.pend=null;
+  const n = (o.pairs!==undefined) ? o.pairs : S.pairs;
+  const rest = S.ps.map((p,i)=>`${P5[i]}:${arr(p.hand).length}枚`).join(" ／ ");
+  o.msg = `<b>記録照合フェーズ終了</b>　成立ペア ${n}/25　残り手札 → ${rest}`; o.msgC="w";
+}
+function onTimeout(){
+  const o = {};
+  if (S.phase==="nego"){ o.phase="draw"; beginTurnInto(o,0); push(o,"交渉ターン終了"); wr(o); return; }
+  if (S.phase==="draw" && S.pend) autoResolve();
+}
+
+// ---------- 引きターン ----------
+function pickTarget(i){
+  if (!S.pend || S.pend.stage!=="target" || S.pend.by!==mySeat) return;
+  if (arr(S.named).includes(i)) return;
+  const o = { named:[...arr(S.named), i], pend:{...S.pend, from:i, stage:"steal"}, endAt: Date.now()+20000 };
+  o.msg = `<b>${P5[mySeat]}</b> が ${P5[i]} を指名。引く1枚を選択中…`;
+  localMode = null; wr(o);
+}
+function pickCard(c){
+  const p = S.pend;
+  if (!p || p.stage!=="steal" || p.by!==mySeat) return;
+  const ps = S.ps.map(x=>({...x, hand:arr(x.hand), info:arr(x.info)}));
+  ps[p.from].hand = ps[p.from].hand.filter(z=>z!==c);
+  ps[p.by].hand = [...ps[p.by].hand, c];
+  const o = { ps, pend:{...p, stage:"give", got:c}, endAt: Date.now()+20000 };
+  o.msg = `<b>${P5[p.by]}</b> が ${P5[p.from]} から1枚引きました。渡す1枚を選択中…`;
+  push(o, `${P5[p.by]} が ${P5[p.from]} から1枚引いた`);
+  localMode = null; wr(o);
+}
+function giveCard(c){
+  const p = S.pend;
+  const ps = S.ps.map(x=>({...x, hand:arr(x.hand), info:arr(x.info)}));
+  ps[p.by].hand = ps[p.by].hand.filter(z=>z!==c);
+  if (p.toDeck) { const d=arr(S.deck); d.push(c); var o={ps, deck:d}; push(o, `${P5[p.by]} が1枚を山札の底へ戻した`); }
+  else { ps[p.from].hand = [...ps[p.from].hand, c]; var o={ps}; push(o, `${P5[p.by]} が ${P5[p.from]} へ1枚渡した`); }
+  endTurn(o); sel=[]; localMode=null; wr(o);
+}
+function deckTrade(){
+  const p = S.pend, d = arr(S.deck);
+  const ps = S.ps.map(x=>({...x, hand:arr(x.hand), info:arr(x.info)}));
+  if (!d.length) { const o={}; push(o,`${P5[p.by]} 指名先・山札ともに無し。手番を飛ばす`); endTurn(o); wr(o); return; }
+  ps[p.by].hand = [...ps[p.by].hand, d.shift()];
+  const o = { ps, deck:d, pend:{...p, stage:"give", toDeck:true}, endAt: Date.now()+20000 };
+  o.msg = `${P5[p.by]}：指名先が残っていないため<b>山札と取引</b>。1枚を山札の底へ戻してください。`; o.msgC="w";
+  wr(o);
+}
+function autoResolve(){
+  const p = S.pend; if (!p) return;
+  if (p.stage==="target"){
+    const av = [0,1,2,3,4].filter(i=>i!==p.by && !arr(S.named).includes(i));
+    if (!av.length) return deckTrade();
+    const i = av[R(av.length)];
+    const o = { named:[...arr(S.named), i], pend:{...p, from:i, stage:"steal"}, endAt: Date.now()+20000 };
+    push(o, `<span style="color:var(--wrn)">自動処理</span> ${P5[p.by]} → ${P5[i]} を指名`);
+    o.msg = "応答なし。優先度に従い、自動処理します。"; o.msgC="w"; wr(o); return;
+  }
+  if (p.stage==="steal"){
+    const h = arr(S.ps[p.from].hand); if (!h.length) return;
+    const ps = S.ps.map(x=>({...x, hand:arr(x.hand), info:arr(x.info)}));
+    const c = h[R(h.length)];
+    ps[p.from].hand = ps[p.from].hand.filter(z=>z!==c);
+    ps[p.by].hand = [...ps[p.by].hand, c];
+    const o = { ps, pend:{...p, stage:"give", got:c}, endAt: Date.now()+20000 };
+    push(o, `<span style="color:var(--wrn)">自動処理</span> ${P5[p.by]} がランダムに1枚引いた`);
+    o.msg="応答なし。優先度に従い、自動処理します。"; o.msgC="w"; wr(o); return;
+  }
+  if (p.stage==="give"){
+    const h = arr(S.ps[p.by].hand); if (!h.length) return;
+    const c = h[R(h.length)];
+    const ps = S.ps.map(x=>({...x, hand:arr(x.hand), info:arr(x.info)}));
+    ps[p.by].hand = ps[p.by].hand.filter(z=>z!==c);
+    let o;
+    if (p.toDeck){ const d=arr(S.deck); d.push(c); o={ps, deck:d}; }
+    else { ps[p.from].hand=[...ps[p.from].hand, c]; o={ps}; }
+    push(o, `<span style="color:var(--wrn)">自動処理</span> ${P5[p.by]} がランダムに1枚を手放した`);
+    endTurn(o); wr(o);
+  }
+}
+
+// ---------- 手札タップ ----------
+function tapHand(c){
+  const p = S.pend;
+  if (p && p.stage==="give" && p.by===mySeat) return giveCard(c);
+  const i = sel.indexOf(c);
+  if (i>=0) sel.splice(i,1); else { if (sel.length>=2) sel.shift(); sel.push(c); }
+  render();
+}
+
+// ---------- 照合 ----------
+function doPair(){
+  const [a,b] = sel;
+  if (PAIR[a] !== b) { wr({ msg:"照合失敗。この2件は対応していません。", msgC:"w" }); sel=[]; render(); return; }
+  const ps = S.ps.map(x=>({...x, hand:arr(x.hand), info:arr(x.info)}));
+  const d = arr(S.deck);
+  ps[mySeat].hand = ps[mySeat].hand.filter(c=>c!==a&&c!==b);
+  ps[mySeat].info = [...ps[mySeat].info, { t:INFO[a], f:"自分" }];
+  let n=0; while (ps[mySeat].hand.length<5 && d.length){ ps[mySeat].hand.push(d.shift()); n++; }
+  const owner = C[a].o, ownSeat = P5.indexOf(owner);
+  const o = { ps, deck:d, pairs:(S.pairs||0)+1 };
+  o.msg = `<b>${P5[mySeat]}</b> がペア成立（${a}＋${b}）。<br>◆ この出来事の当事者は <b>${owner}</b> です — 該当者の端末に記憶が届きます。`;
+  o.msgC = "s";
+  o.soul = { to:ownSeat, strong: ownSeat===mySeat, at:Date.now() };
+  push(o, `<b>${P5[mySeat]} がペア成立</b>（補充${n}枚）`, "me");
+  if (o.pairs>=25) finish(o);
+  sel=[]; wr(o);
+}
+
+// ---------- 効果カード ----------
+function useEffect(){
+  const id = sel[0], d = C[id];
+  if (!confirm(`【${d.n}】\n${d.x}\n\n使用しますか？`)) return;
+  const ps = S.ps.map(x=>({...x, hand:arr(x.hand), info:arr(x.info)}));
+  const dk = arr(S.deck);
+  ps[mySeat].hand = ps[mySeat].hand.filter(c=>c!==id);
+  const o = { ps, deck:dk };
+  if (d.n==="優先度上書き") ps[mySeat].ovr = true;
+  if (d.n==="全体再構成"){
+    let pool = sh(ps.flatMap(x=>x.hand)); ps.forEach(x=>x.hand=[]);
+    let i=0; while(pool.length){ ps[i%5].hand.push(pool.shift()); i++; }
+    push(o, "<b>全体再構成</b>：全手札を回収し再配分");
+  }
+  if (d.n==="記録監査"){
+    const mv = ps.map(x=>{ const r=x.hand.filter(c=>C[c].t==="rec"); return r.length?r[R(r.length)]:null; });
+    mv.forEach((c,i)=>{ if(!c) return; ps[i].hand=ps[i].hand.filter(z=>z!==c); ps[(i+4)%5].hand.push(c); });
+    push(o, "<b>記録監査</b>：全員が事件記録を1件ずつ左隣へ");
+  }
+  if (d.n==="優先アクセス権" || d.n==="完全アクセス権"){
+    const t = prompt("対象の個体番号を入力（1〜5）");
+    const ti = P5.indexOf("PC"+String(t||"").trim());
+    if (ti>=0 && ti!==mySeat){
+      const h = arr(ps[ti].hand).filter(c=>C[c].t!=="rec");
+      const cards = d.n==="完全アクセス権" ? h : (h.length ? [h[R(h.length)]] : []);
+      o.reveal = { to:mySeat, of:ti, cards, at:Date.now() };
+      push(o, `${P5[mySeat]} が ${P5[ti]} に <b>${d.n}</b> を使用`);
+    }
+  }
+  if (d.n==="強制照合"){
+    o.pend = { by:mySeat, stage:"target", forced:true };
+    o.msg = `<b>強制照合</b>：対象を指名し、1枚引いて1枚渡してください。`; o.msgC="w";
+    push(o, `${P5[mySeat]} が <b>強制照合</b> を使用`);
+  }
+  if (["相互置換","開示制御"].includes(d.n)){
+    o.msg = `<b>${P5[mySeat]}</b> が <b>${d.n}</b> を使用しました。効果は口頭で合意のうえ、交渉ターンの交換機能で処理してください。`; o.msgC="w";
+    push(o, `${P5[mySeat]} が <b>${d.n}</b> を使用（手動処理）`);
+  }
+  if (dk.length) ps[mySeat].hand.push(dk.shift());
+  sel=[]; wr(o);
+}
+
+// ---------- 交渉ターンの交換 ----------
+function makeOffer(){
+  const to = prompt("交換を申し込む相手の個体番号（1〜5）");
+  const ti = P5.indexOf("PC"+String(to||"").trim());
+  if (ti<0 || ti===mySeat) return;
+  const id = "o"+Date.now();
+  wr({ ["offers/"+id]: { from:mySeat, to:ti, card:sel[0] } });
+  sel=[]; render();
+}
+function renderOffers(){
+  const os = S.offers || {};
+  const mine = Object.entries(os).filter(([,o])=>o.to===mySeat);
+  $("offers").innerHTML = mine.map(([id,o])=>
+    `<div class="msg w"><b>${P5[o.from]}</b> から交換の申請（相手が出す：${o.card}）<br>
+     <span class="hint">自分の手札を1枚選んでから「承認」</span><br>
+     <button data-ok="${id}" style="margin-top:6px">承認</button>
+     <button data-ng="${id}" class="dgr" style="margin-top:6px">拒否</button></div>`).join("");
+  $("offers").querySelectorAll("[data-ok]").forEach(b=>b.onclick=()=>acceptOffer(b.dataset.ok));
+  $("offers").querySelectorAll("[data-ng]").forEach(b=>b.onclick=()=>wr({["offers/"+b.dataset.ng]:null}));
+}
+function acceptOffer(id){
+  const o = S.offers[id];
+  if (sel.length!==1) { alert("自分の手札を1枚選んでください"); return; }
+  const ps = S.ps.map(x=>({...x, hand:arr(x.hand), info:arr(x.info)}));
+  ps[o.from].hand = ps[o.from].hand.filter(c=>c!==o.card).concat(sel[0]);
+  ps[mySeat].hand = ps[mySeat].hand.filter(c=>c!==sel[0]).concat(o.card);
+  const u = { ps, ["offers/"+id]:null };
+  push(u, `${P5[o.from]} ⇄ ${P5[mySeat]} が交換成立`);
+  sel=[]; wr(u);
+}
+function shareInfo(){
+  const info = arr(me().info);
+  if (!info.length) return alert("渡せる情報がありません");
+  const n = prompt("渡す情報の番号（1〜"+info.length+"）");
+  const idx = parseInt(n,10)-1; if (!(idx>=0 && idx<info.length)) return;
+  const to = prompt("渡す相手の個体番号（1〜5）");
+  const ti = P5.indexOf("PC"+String(to||"").trim());
+  if (ti<0 || ti===mySeat) return;
+  const ps = S.ps.map(x=>({...x, hand:arr(x.hand), info:arr(x.info)}));
+  ps[ti].info = [...ps[ti].info, { t:info[idx].t, f:P5[mySeat] }];
+  const u = { ps };
+  push(u, `${P5[mySeat]} → ${P5[ti]} へ情報データを共有`);
+  wr(u);
+}
+
+// ---------- ボトムバー ----------
+function renderBottom(){
+  const b = [], p = S.pend, myTurn = p && p.by===mySeat;
+  if (S.phase==="lobby" && isHost()) b.push(["開始","pri",()=>beginRound()]);
+  if (S.phase==="wait" && isHost()) b.push(["次のラウンド","pri",()=>beginRound()]);
+  if (S.phase==="nego"){
+    if (isHost()) b.push(["交渉終了 →","",()=>toDraw()]);
+    b.push([`交換を申請${sel.length===1?"":"（1枚選択）"}`,"",()=>sel.length===1&&makeOffer()]);
+    b.push(["情報を渡す","",shareInfo]);
+  }
+  if (myTurn && p.stage==="target"){ localMode="target"; b.push(["▶ 上から相手を選ぶ","",null]); }
+  else if (myTurn && p.stage==="steal"){ localMode="steal"; b.push(["▶ 相手の札を選ぶ","",null]); }
+  else if (myTurn && p.stage==="give"){ localMode=null; b.push(["▶ 渡す札をタップ","",null]); }
+  else localMode = null;
+  if (sel.length===2) b.push(["照合する","pri",doPair]);
+  if (sel.length===1 && C[sel[0]].t==="eff"){
+    const ok = (C[sel[0]].ph==="nego" && S.phase==="nego") || (C[sel[0]].ph==="draw" && myTurn);
+    if (ok) b.push(["効果カードを使う","",useEffect]);
+  }
+  if (isHost() && S.phase==="draw") b.push(["自動処理","dgr",autoResolve]);
+  $("bot").innerHTML = b.map((x,i)=>`<button data-b="${i}" class="${x[1]}" ${x[2]?"":"disabled"}>${x[0]}</button>`).join("");
+  $("bot").querySelectorAll("[data-b]").forEach(e=>{ const f=b[+e.dataset.b][2]; if(f) e.onclick=f; });
+}
+
+// ---------- 魂の記憶の通知 ----------
+let lastSoul = 0;
+setInterval(()=>{
+  if (!S || !S.soul || mySeat===null) return;
+  if (S.soul.at === lastSoul) return;
+  lastSoul = S.soul.at;
+  if (S.soul.to === mySeat){
+    const t = S.soul.strong
+      ? "◆ 強い記憶が蘇った。映像と音が、はっきりと戻ってくる。"
+      : "◆ 弱い記憶。音だけが、遠くで鳴っている。";
+    $("msg").innerHTML = `<div class="msg s">${t}<br><span class="hint">この表示はあなたにしか出ていません</span></div>`;
+    if (navigator.vibrate) navigator.vibrate(S.soul.strong?[80,60,80]:[40]);
+  }
+}, 500);
+</script>
+</html>
