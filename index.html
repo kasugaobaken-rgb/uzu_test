@@ -85,6 +85,12 @@ input{font-family:inherit;font-size:17px;background:var(--pan2);color:var(--fg);
 .selno{position:absolute;top:-8px;left:-8px;width:24px;height:24px;border-radius:50%;
   background:var(--acc);color:#06110f;font-size:13px;font-weight:700;
   display:grid;place-items:center}
+/* 直前に手札へ入ったカード */
+.cd.new{border-color:var(--acc);animation:pop .45s ease-out}
+.newtag{position:absolute;top:-7px;left:-6px;background:var(--acc);color:#06110f;
+  font-size:10px;font-weight:700;letter-spacing:.1em;padding:2px 6px;border-radius:10px}
+@keyframes pop{0%{transform:scale(.9);opacity:.4}60%{transform:scale(1.03)}100%{transform:scale(1);opacity:1}}
+@media(prefers-reduced-motion:reduce){.cd.new{animation:none}}
 
 /* ---------- 場（他の個体） ---------- */
 .pc{background:var(--pan);border:1px solid var(--ln);border-radius:8px;
@@ -119,6 +125,12 @@ input{font-family:inherit;font-size:17px;background:var(--pan2);color:var(--fg);
 .inq .ih{font-size:13px;color:var(--acc);font-weight:700}
 .inq .ib{font-size:13.5px;line-height:1.6;margin:5px 0 9px}
 .inq button{width:100%;padding:11px}
+/* 相手を選ぶ */
+.askbox{margin:8px 12px 0;padding:11px 13px;border-radius:8px;
+  background:rgba(255,209,102,.09);border:2px solid var(--glw)}
+.askbox .al{font-size:14px;color:var(--glw);margin-bottom:8px}
+.askbox .tgts{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.askbox .tgts button{padding:11px 2px;font-size:13px;border-radius:6px}
 
 /* ---------- 情報・ログ ---------- */
 .log{background:var(--pan);border:1px solid var(--ln);border-radius:8px;padding:10px;
@@ -126,6 +138,13 @@ input{font-family:inherit;font-size:17px;background:var(--pan2);color:var(--fg);
 .log>div{padding:7px 0;border-bottom:1px solid #202830}
 .log>div:last-child{border-bottom:none}
 .log .me{color:var(--acc)}
+/* 情報データの1件 */
+.ie .it{font-size:13.5px;line-height:1.6}
+.ie.me .it{color:var(--acc)}
+.ir{display:flex;align-items:center;gap:10px;margin-top:4px}
+.shb{padding:5px 12px;font-size:12px;margin-left:auto;border-radius:14px}
+.tgts{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:7px}
+.tgts button{padding:9px 2px;font-size:12px;border-radius:6px}
 h2{font-size:12px;letter-spacing:.16em;color:var(--dim);font-weight:400;margin:16px 0 7px}
 
 /* ---------- 下部アクション ---------- */
@@ -182,6 +201,7 @@ h2{font-size:12px;letter-spacing:.16em;color:var(--dim);font-weight:400;margin:1
   <div id="msg"></div>
   <div id="offers"></div>
   <div id="inq"></div>
+  <div id="ask"></div>
 
   <div class="pane" id="pHand"><div class="hand" id="hand"></div></div>
   <div class="pane hide" id="pTable"><div id="pcs"></div></div>
@@ -260,7 +280,7 @@ function push(o, t, cls){ o.logs = [ {t, c:cls||""}, ...(o.logs || arr(S.logs)) 
 // 手札に記憶記録と事件記録の対応が揃った瞬間、自動で情報データへ落とし込む。
 // 補充によって新たな対応が生まれることがあるので、揃わなくなるまで繰り返す。
 function resolvePairs(ps, deck, o){
-  const souls = [];
+  const souls = [], evts = [], fresh = {};
   let again = true, guard = 0;
   o.pairs = (o.pairs !== undefined) ? o.pairs : (S.pairs || 0);
   while (again && guard++ < 40){
@@ -271,18 +291,35 @@ function resolvePairs(ps, deck, o){
         if (!m || !ps[s].hand.includes(c) || !ps[s].hand.includes(m)) continue;
         ps[s].hand = ps[s].hand.filter(z => z !== c && z !== m);
         ps[s].info = [...ps[s].info, { t: INFO[c], f: "自分" }];
-        let n = 0; while (n < 2 && deck.length){ ps[s].hand.push(deck.shift()); n++; }
+        const got = [];
+        let n = 0; while (n < 2 && deck.length){ const x = deck.shift(); ps[s].hand.push(x); got.push(x); n++; }
+        (fresh[s] = fresh[s] || []).push(...got);
         const owner = C[c].o, os = P5.indexOf(owner);
         souls.push({ to: os, strong: os === s, by: s });
+        evts.push({ by:s, info:INFO[c], a:c, m, got:got.length });
         o.pairs++;
-        push(o, `<b>${P5[s]}</b> の手元で照合が成立（${c}＋${m}）`, "me");
+        push(o, `<b>${P5[s]}</b> の手元で1組が成立（${c}＋${m}／補充${got.length}枚）`, "me");
         again = true; break;
       }
     }
   }
   if (souls.length) o.souls = { at: Date.now(), list: souls };
+  if (evts.length){
+    o.pairEvt = { at: Date.now(), list: evts };
+    o.msg = evts.map(e=>`◆ <b>${P5[e.by]}</b> の手元で1組が成立しました（${e.a}＋${e.m}）`).join("<br>")
+          + `<br><span class="hint">内容が読めるのは、成立させた本人だけです</span>`;
+    o.msgC = "s";
+  }
+  mergeFresh(o, fresh);
   if (o.pairs >= 25) finish(o);
   return souls;
+}
+// 直前に手札へ入ったカード（NEW表示用）
+function mergeFresh(o, map){
+  if (!Object.keys(map).length) return;
+  const cur = (o.fresh && o.fresh.map) ? o.fresh.map : {};
+  Object.entries(map).forEach(([k,v]) => { cur[k] = [...(cur[k]||[]), ...v]; });
+  o.fresh = { at: Date.now(), map: cur };
 }
 // ps / deck を安全に取り出すヘルパ
 const clonePs = () => S.ps.map(x => ({ ...x, hand: arr(x.hand), info: arr(x.info) }));
@@ -372,12 +409,14 @@ function render(){
 
   // --- 自分の手札 ---
   const hand = arr(me().hand);
+  const freshIds = (S.fresh && S.fresh.map) ? arr(S.fresh.map[mySeat]) : [];
   $("hand").innerHTML = hand.map(c=>{
     const d = C[c], own = d.t==="mem" && d.o===P5[mySeat];
     const k = {rec:"事件記録",mem:"記憶記録",eff:`${d.ph==="nego"?"交渉":"引き"}／${d.n}`,jok:"事後通信"}[d.t];
-    const on = sel.includes(c);
-    return `<div class="cd c${d.t} ${on?"sel":""} ${own?"own":""}" data-h="${c}">
+    const on = sel.includes(c), isNew = freshIds.includes(c);
+    return `<div class="cd c${d.t} ${on?"sel":""} ${own?"own":""} ${isNew?"new":""}" data-h="${c}">
       ${on?'<span class="selno">✓</span>':""}
+      ${isNew?'<span class="newtag">NEW</span>':""}
       ${own?'<span class="tg">◆ 自分</span>':""}
       <div class="ci">${c}</div><div class="ck">${k}</div><div class="ct">${d.x}</div></div>`;
   }).join("");
@@ -386,8 +425,18 @@ function render(){
   // --- 情報・ログ ---
   const info = arr(me().info);
   $("inf").innerHTML = info.length
-    ? info.map((x,i)=>`<div class="${x.f==="自分"?"me":""}">${i+1}. ${x.t}<div class="hint">入手：${x.f}</div></div>`).join("")
-    : '<div class="hint">まだ情報がありません。ペアを作ると増えます。</div>';
+    ? info.map((x,i)=>`<div class="ie ${x.f==="自分"?"me":""}">
+        <div class="it">${i+1}. ${x.t}</div>
+        <div class="ir"><span class="hint">入手：${x.f}</span>
+          <button class="shb" onclick="toggleShare(${i})">${shareOpen===i?"閉じる":"渡す"}</button></div>
+        ${shareOpen===i ? `<div class="tgts">${
+            P5.map((n,j)=> j===mySeat ? "" : `<button data-send="${i}:${j}">${n}</button>`).join("")
+          }<button data-send="${i}:all" class="dgr">全員</button></div>` : ""}
+      </div>`).join("")
+    : '<div class="hint">まだ情報がありません。手札に対応が揃うと自動で溜まります。</div>';
+  $("inf").querySelectorAll("[data-send]").forEach(b=>b.onclick=()=>{
+    const [i,to] = b.dataset.send.split(":"); sendInfo(Number(i), to);
+  });
   $("lg").innerHTML = arr(S.logs).map(l=>`<div class="${l.c}">${l.t}</div>`).join("");
 
   // --- タブ ---
@@ -398,7 +447,7 @@ function render(){
   else if (localMode==="give") tab = "hand";
   showTab(tab);
 
-  renderOffers(); renderInq(); renderBottom(); startTick();
+  renderOffers(); renderInq(); renderAsk(); renderBottom(); startTick();
 }
 
 // ---------- タブ ----------
@@ -461,7 +510,7 @@ function beginRound(){
   ps.forEach(p=>{ p.ovr=false; p.hand=arr(p.hand); p.info=arr(p.info); });
   const d0 = arr(S.deck);
   o.ps=ps; o.order=order; o.named=[]; o.ti=0; o.phase="nego"; o.pend=null;
-  o.offers={}; o.inq={}; o.reveal=null;
+  o.offers={}; o.inq={}; o.reveal=null; o.fresh=null;   // NEW表示はラウンドごとにリセット
   o.deck = d0;
   resolvePairs(ps, d0, o);   // 初回配布や効果カードで既に揃っている場合の取りこぼしを拾う
   o.endAt = Date.now()+60000;
@@ -521,6 +570,7 @@ function pickCard(c){
   push(o, `${P5[p.by]} が ${P5[p.from]} から1枚引いた`);
   const kind = {rec:"事件記録",mem:"記憶記録",eff:"効果カード",jok:"事後通信"}[C[c].t];
   setFlash(`<b>${P5[p.from]} から引いた1枚</b><br>${c}（${kind}）<br>${C[c].x}`);
+  mergeFresh(o, { [p.by]: [c] });
   resolvePairs(ps, d, o);
   tab = "hand";
   endTurn(o); sel=[]; localMode=null; wr(o);
@@ -567,6 +617,14 @@ function tapHand(c){
 function useEffect(){
   const id = sel[0], d = C[id];
   if (!confirm(`【${d.n}】\n${d.x}\n\n使用しますか？`)) return;
+  if (d.n==="優先アクセス権" || d.n==="完全アクセス権" || d.n==="強制照合"){
+    chooseTarget(`<b>${d.n}</b>：どの個体を対象にしますか？`, ti => applyEffect(id, ti));
+    return;
+  }
+  applyEffect(id, null);
+}
+function applyEffect(id, ti){
+  const d = C[id];
   const ps = clonePs();
   const dk = arr(S.deck);
   ps[mySeat].hand = ps[mySeat].hand.filter(c=>c!==id);
@@ -582,26 +640,25 @@ function useEffect(){
     mv.forEach((c,i)=>{ if(!c) return; ps[i].hand=ps[i].hand.filter(z=>z!==c); ps[(i+4)%5].hand.push(c); });
     push(o, "<b>記録監査</b>：全員が事件記録を1件ずつ左隣へ");
   }
-  if (d.n==="優先アクセス権" || d.n==="完全アクセス権"){
-    const t = prompt("対象の個体番号を入力（1〜5）");
-    const ti = P5.indexOf("PC"+String(t||"").trim());
-    if (ti>=0 && ti!==mySeat){
-      const h = arr(ps[ti].hand).filter(c=>C[c].t!=="rec");
-      const cards = d.n==="完全アクセス権" ? h : (h.length ? [h[R(h.length)]] : []);
-      o.reveal = { to:mySeat, of:ti, cards, at:Date.now() };
-      push(o, `${P5[mySeat]} が ${P5[ti]} に <b>${d.n}</b> を使用`);
-    }
+  if ((d.n==="優先アクセス権" || d.n==="完全アクセス権") && ti!=null){
+    const h = arr(ps[ti].hand);
+    const cards = d.n==="完全アクセス権" ? h : (h.length ? [h[R(h.length)]] : []);
+    o.reveal = { to:mySeat, of:ti, cards, at:Date.now() };
+    push(o, `${P5[mySeat]} が ${P5[ti]} に <b>${d.n}</b> を使用`);
+    setFlash(`<b>${d.n}</b>：${P5[ti]} の手札を閲覧しました。<br>「場」タブに内容が出ています。`);
+    tab = "table";
   }
-  if (d.n==="強制照合"){
-    o.pend = { by:mySeat, stage:"target", forced:true };
-    o.msg = `<b>強制照合</b>：対象を指名し、1枚引いて1枚渡してください。`; o.msgC="w";
-    push(o, `${P5[mySeat]} が <b>強制照合</b> を使用`);
+  if (d.n==="強制照合" && ti!=null){
+    o.named = [...arr(S.named), ti];
+    o.pend = { by:mySeat, from:ti, stage:"steal", forced:true };
+    o.msg = `<b>強制照合</b>：${P5[mySeat]} が ${P5[ti]} から強制的に1枚引きます。`; o.msgC="w";
+    push(o, `${P5[mySeat]} が ${P5[ti]} へ <b>強制照合</b> を使用`);
   }
   if (["相互置換","開示制御"].includes(d.n)){
     o.msg = `<b>${P5[mySeat]}</b> が <b>${d.n}</b> を使用しました。効果は口頭で合意のうえ、交渉ターンの交換機能で処理してください。`; o.msgC="w";
     push(o, `${P5[mySeat]} が <b>${d.n}</b> を使用（手動処理）`);
   }
-  if (dk.length) ps[mySeat].hand.push(dk.shift());
+  if (dk.length){ const x = dk.shift(); ps[mySeat].hand.push(x); mergeFresh(o, { [mySeat]: [x] }); }
   resolvePairs(ps, dk, o);
   sel=[]; wr(o);
 }
@@ -641,12 +698,11 @@ function respondInq(id){
 
 // ---------- 交渉ターンの交換 ----------
 function makeOffer(){
-  const to = prompt("交換を申し込む相手の個体番号（1〜5）");
-  const ti = P5.indexOf("PC"+String(to||"").trim());
-  if (ti<0 || ti===mySeat) return;
-  const id = "o"+Date.now();
-  wr({ ["offers/"+id]: { from:mySeat, to:ti, card:sel[0] } });
-  sel=[]; render();
+  const c = sel[0]; if (!c) return;
+  chooseTarget(`<b>${c}</b> を、どの個体と交換しますか？`, ti=>{
+    wr({ ["offers/o"+Date.now()]: { from:mySeat, to:ti, card:c } });
+    sel=[]; render();
+  });
 }
 function renderOffers(){
   const os = S.offers || {};
@@ -670,19 +726,44 @@ function acceptOffer(id){
   resolvePairs(ps, d, u);
   sel=[]; wr(u);
 }
-function shareInfo(){
-  const info = arr(me().info);
-  if (!info.length) return alert("渡せる情報がありません");
-  const n = prompt("渡す情報の番号（1〜"+info.length+"）");
-  const idx = parseInt(n,10)-1; if (!(idx>=0 && idx<info.length)) return;
-  const to = prompt("渡す相手の個体番号（1〜5）");
-  const ti = P5.indexOf("PC"+String(to||"").trim());
-  if (ti<0 || ti===mySeat) return;
-  const ps = S.ps.map(x=>({...x, hand:arr(x.hand), info:arr(x.info)}));
-  ps[ti].info = [...ps[ti].info, { t:info[idx].t, f:P5[mySeat] }];
+// ---------- 相手を選ぶ（prompt を使わない共通UI）----------
+let askTarget = null;
+function chooseTarget(label, cb){ askTarget = { label, cb }; render(); }
+function renderAsk(){
+  if (!askTarget){ $("ask").innerHTML = ""; return; }
+  $("ask").innerHTML = `<div class="askbox"><div class="al">${askTarget.label}</div>
+    <div class="tgts">${P5.map((n,j)=> j===mySeat ? "" : `<button data-ask="${j}">${n}</button>`).join("")}
+    <button data-ask="x" class="dgr">やめる</button></div></div>`;
+  $("ask").querySelectorAll("[data-ask]").forEach(b=>b.onclick=()=>{
+    const v = b.dataset.ask, cb = askTarget.cb;
+    askTarget = null;
+    if (v === "x") return render();
+    cb(Number(v));
+  });
+}
+
+// ---------- 情報データの共有 ----------
+let shareOpen = null;   // 「渡す」を開いている情報の番号
+window.toggleShare = i => { shareOpen = (shareOpen===i) ? null : i; render(); };
+function sendInfo(idx, to){
+  const info = arr(me().info)[idx]; if (!info) return;
+  const targets = (to==="all") ? [0,1,2,3,4].filter(i=>i!==mySeat) : [Number(to)];
+  const ps = clonePs();
+  const sent = [];
+  targets.forEach(t=>{
+    if (ps[t].info.some(x => x.t === info.t)) return;   // 既に持っていれば入れない
+    ps[t].info = [...ps[t].info, { t: info.t, f: P5[mySeat] }];
+    sent.push(t);
+  });
   const u = { ps };
-  push(u, `${P5[mySeat]} → ${P5[ti]} へ情報データを共有`);
-  wr(u);
+  if (sent.length){
+    u.infoEvt = { at: Date.now(), to: sent, from: mySeat };
+    push(u, `${P5[mySeat]} → ${sent.map(t=>P5[t]).join("・")} へ情報データを共有`);
+    setFlash(`<b>情報を渡しました</b><br>${sent.map(t=>P5[t]).join("・")} へ`);
+  } else {
+    setFlash("その情報は、相手が既に持っています。");
+  }
+  shareOpen = null; wr(u);
 }
 
 // ---------- ボトムバー ----------
@@ -699,7 +780,7 @@ function renderBottom(){
   if (S.phase==="nego"){
     b.push([sel.length===1?`${sel[0]} を照会`:"照会（1枚選ぶ）","pri",sel.length===1?makeInquiry:null]);
     b.push([sel.length===1?"名指しで交換":"交換（1枚選ぶ）","",sel.length===1?makeOffer:null]);
-    b.push(["情報を渡す","",shareInfo]);
+    b.push([`情報を渡す（${arr(me().info).length}件）`,"",()=>{ showTab("info"); }]);
     if (isHost()) b.push(["交渉終了 →","dgr",()=>toDraw()]);
   }
   if (isHost() && S.phase==="draw") b.push(["自動処理","dgr",autoResolve]);
@@ -709,6 +790,33 @@ function renderBottom(){
 }
 
 // ---------- 魂の記憶の通知 ----------
+// 情報を受け取ったとき
+let lastInfo = 0;
+setInterval(()=>{
+  if (!S || !S.infoEvt || mySeat===null) return;
+  if (S.infoEvt.at === lastInfo) return;
+  lastInfo = S.infoEvt.at;
+  if (!arr(S.infoEvt.to).includes(mySeat)) return;
+  setFlash(`<b>${P5[S.infoEvt.from]} から情報データを受け取りました</b><br>情報タブで確認できます。`);
+  showTab("info");
+  if (navigator.vibrate) navigator.vibrate(50);
+}, 400);
+
+// ペア成立：成立させた本人にだけ、得た情報の中身を出す
+let lastPair = 0;
+setInterval(()=>{
+  if (!S || !S.pairEvt || mySeat===null) return;
+  if (S.pairEvt.at === lastPair) return;
+  lastPair = S.pairEvt.at;
+  const mine = arr(S.pairEvt.list).filter(e => e.by === mySeat);
+  if (!mine.length) return;
+  setFlash(`<b>照合が成立しました（${mine.length}組）</b><br>`
+    + mine.map(e=>`${e.a}＋${e.m}<br>▶ ${e.info}`).join("<br><br>")
+    + `<br><br><span class="hint">情報タブに保存されました。山札から${mine.reduce((s,e)=>s+e.got,0)}枚補充されています。</span>`);
+  tab = "hand";
+  if (navigator.vibrate) navigator.vibrate([30,40,30]);
+}, 400);
+
 let lastSoul = 0;
 setInterval(()=>{
   if (!S || !S.souls || mySeat===null) return;
