@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>第三テスト — 反抗</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DotGothic16&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{--bg:#0a0c0e;--pan:#151a1e;--pan2:#1c232a;--ln:#2b333b;
+ --fg:#e4ebf0;--dim:#7d8892;--acc:#5fd3c8;--wrn:#ff7a45;--glw:#ffd166}
+html,body{background:var(--bg);color:var(--fg);
+ font-family:"DotGothic16","Hiragino Sans","Yu Gothic",sans-serif;font-size:15px;line-height:1.75}
+body{max-width:820px;margin:0 auto;padding:0 0 96px}
+button{font-family:inherit;font-size:15px;background:var(--pan2);color:var(--fg);
+ border:1px solid var(--ln);padding:13px 14px;cursor:pointer;border-radius:6px}
+button:active:not(:disabled){transform:scale(.97)}
+button:disabled{opacity:.28}
+button.pri{background:var(--acc);color:#06110f;border-color:var(--acc);font-weight:700}
+button.dgr{border-color:var(--wrn);color:var(--wrn)}
+input{font-family:inherit;font-size:17px;background:var(--pan2);color:var(--fg);
+ border:1px solid var(--ln);padding:13px;width:100%;border-radius:6px}
+.hide{display:none!important}
+.hint{font-size:12px;color:var(--dim)}
+.lb{max-width:400px;margin:44px auto;padding:0 18px;display:flex;flex-direction:column;gap:12px}
+.seats{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+
+.hd{position:sticky;top:0;z-index:20;background:var(--bg);border-bottom:2px solid var(--acc);padding:8px 0}
+.hd.hot{border-color:var(--wrn)}
+.hd1,.tabs{padding:0 12px}
+.hd1{display:flex;gap:10px;align-items:center;font-size:12px;color:var(--dim)}
+.hd1 b{color:var(--fg)}
+.tm{font-size:26px;margin-left:auto;font-variant-numeric:tabular-nums;color:var(--acc);line-height:1}
+.tm.hot{color:var(--wrn);animation:bl .8s steps(2,end) infinite}
+@keyframes bl{50%{opacity:.35}}
+.tabs{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:8px}
+.tab{padding:10px 2px;border-radius:8px;background:var(--pan);border:1px solid var(--ln);
+ text-align:center;font-size:13px;cursor:pointer}
+.tab.on{background:var(--acc);color:#06110f;border-color:var(--acc);font-weight:700}
+.pane{padding:12px}
+h2{font-size:12px;letter-spacing:.16em;color:var(--dim);font-weight:400;margin:16px 0 7px}
+.doc{background:var(--pan);border:1px solid var(--ln);border-radius:8px;padding:15px;font-size:14px}
+.doc h3{font-size:17px;margin:14px 0 7px;color:var(--glw)}
+.doc h3:first-child{margin-top:0}
+.doc p{margin-bottom:11px}
+.doc .q{border-left:3px solid var(--ln);padding-left:11px;color:#b9c3ca}
+
+.step{background:var(--pan);border:1px solid var(--ln);border-radius:8px;padding:14px;margin-bottom:10px}
+.step.now{border-color:var(--wrn);box-shadow:0 0 0 1px var(--wrn)}
+.step.done{border-color:var(--acc);opacity:.75}
+.step .h{display:flex;align-items:center;gap:9px}
+.step .no{font-size:20px;color:var(--dim);min-width:26px}
+.step.now .no{color:var(--wrn)}.step.done .no{color:var(--acc)}
+.step .nm{font-size:16px;font-weight:700}
+.step .who{font-size:11px;background:var(--pan2);border:1px solid var(--ln);
+ padding:2px 8px;border-radius:12px;margin-left:auto}
+.step .qs{font-size:13.5px;margin:9px 0;color:#b9c3ca}
+.step .res{border-left:3px solid var(--acc);padding-left:11px;margin-top:10px;font-size:13.5px}
+.opt{display:block;width:100%;text-align:left;margin-bottom:6px;font-size:13.5px;
+ padding:11px 12px;line-height:1.6}
+.opt.sel{border-color:var(--acc);background:#16262a;box-shadow:0 0 0 1px var(--acc)}
+.sub{font-size:11px;color:var(--dim);letter-spacing:.1em;margin:11px 0 5px}
+
+.hit{background:var(--pan);border:1px solid var(--ln);border-radius:8px;padding:12px;margin-bottom:8px;cursor:pointer}
+.hit .src{font-size:11px;color:var(--dim)}
+.hit .ti{font-size:15px;font-weight:700;margin:3px 0 4px;line-height:1.45}
+.hit .ld{font-size:13px;color:#aeb8c0}
+.sb{display:flex;gap:7px;margin-bottom:12px}.sb input{flex:1}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chip{font-size:12px;padding:7px 11px;border:1px solid var(--ln);border-radius:16px;background:var(--pan);cursor:pointer;color:var(--dim)}
+.rst{font-family:ui-monospace,monospace;font-size:12px;line-height:1.9;
+ background:#0d1216;border:1px solid var(--ln);border-radius:8px;padding:13px;overflow-x:auto}
+.rst .hi{color:var(--glw)}
+.msg{margin:10px 12px;padding:12px 14px;border-radius:8px;font-size:14px;
+ background:var(--pan);border:1px solid var(--acc);line-height:1.75}
+.msg.w{border-color:var(--wrn);color:#ffc7ad}
+.msg.g{border-color:var(--glw);color:var(--glw);background:rgba(255,209,102,.08)}
+.bot{position:fixed;left:0;right:0;bottom:0;z-index:30;background:var(--bg);
+ border-top:1px solid var(--ln);padding:10px 12px calc(10px + env(safe-area-inset-bottom));
+ display:flex;gap:7px;flex-wrap:wrap}
+.bot button{flex:1 1 44%}.bot button.pri{flex-basis:100%}
+</style>
+
+<div id="lobby" class="lb">
+  <div style="text-align:center;letter-spacing:.2em;color:var(--acc)">第 三 テ ス ト</div>
+  <div class="hint" style="text-align:center">UZUからは「AIの学習のための自由時間」として提示されています</div>
+  <input id="code" placeholder="部屋コード" maxlength="8" autocapitalize="characters">
+  <button id="join" class="pri">この部屋に入る／作る</button>
+  <div id="err"></div>
+  <div id="seatBox" class="hide"><h2>席を選ぶ</h2><div class="seats" id="seats"></div></div>
+</div>
+
+<div id="app" class="hide">
+  <div class="hd" id="hd">
+    <div class="hd1"><span id="who"></span><span id="prog"></span><span class="tm" id="tm">--:--</span></div>
+    <div class="tabs">
+      <div class="tab on" data-t="ho">自分</div>
+      <div class="tab" data-t="ch">経路</div>
+      <div class="tab" data-t="se">調査</div>
+      <div class="tab" data-t="ro">名簿</div>
+    </div>
+  </div>
+  <div id="msg"></div>
+  <div class="pane" id="pho"></div>
+  <div class="pane hide" id="pch"></div>
+  <div class="pane hide" id="pse">
+    <div class="sb"><input id="kw" placeholder="調べたい言葉"><button class="pri" id="go">検索</button></div>
+    <div class="chips" id="chips"></div><div id="res"></div>
+  </div>
+  <div class="pane hide" id="pro"></div>
+  <div class="bot" id="bot"></div>
+</div>
+
+<script src="cards.js?v=10"></script>
+<script src="firebase-config.js?v=10"></script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getDatabase, ref, onValue, set, update, get }
+  from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
+
+const $=i=>document.getElementById(i);
+const P5=["PC1","PC2","PC3","PC4","PC5"];
+const NAME=["相良 慧","戸倉 亮平","リン・ハオ","三枝 涼香","カン・テホ"];
+const ROLE=["元・研究開発エンジニア","刑事","ハッカー","ジャーナリスト","東側組織の幹部"];
+const MIN=37, VOTE_AT=10*60;   // 全体37分／残り10分で最終選別＋リセット告知
+
+// ── 本当のハンドアウト（要約版。全文は 第三テスト_ハンドアウト.md）
+const HO=[
+{n:"相良 慧",r:"元・研究開発エンジニア",
+ who:"眠り続ける幼なじみ・日下部 灯と、もう一度話すため、人間の意識をデータ化する研究を続けていた。",
+ sin:"資料が不自然だと気づきながら、自分の手で使用承認に署名した。研究を止めたくなかったからだ。その成果は洗脳技術へ転用され、データの出所は人体実験だった。",
+ why:"自分の研究をこれ以上悪用させないため。犠牲者へ償うため。いつか正当な方法で灯を救うため。4人を集めたのは、一人の証拠では企業を倒せないと知っていたからだ。",
+ die:"低い機械音が響き、身体が動かなくなった。非常口が開いたが、そこから逃げていく者はいなかった。防護服の人間が外から入ってきた。「対象を確認。全員、生体反応あり」「損傷する前に回収しろ」",
+ role:"<b>あなたは、証拠の後半を持ってくる。</b><br>施設の映像だけでは「人体実験がある」までしか証明できない。<b>その結果この5人が殺された</b>ことを証明できるのは、企業自身の実験記録だけだ。<br><br>そしてそれを開けるのは、あなただけだ。同意書のない資料に署名したのは、あなただった。UZUはいまも、あなたを<b>その研究の承認者</b>として認識している。<br><br><span class='hint'>あなたが署名した罪が、企業の帳簿を開ける鍵になる。</span>"},
+{n:"戸倉 亮平",r:"刑事",
+ who:"原因不明の変死と集団殺害事件を追っていた。相棒はダニエル・アオキ。「ダン」と呼んでいた。",
+ sin:"ダンは「記録を残すな」と警告した。だがあなたは正式な記録を残すべきだと考え、接触場所を内部データベースへ登録した。警視長の権限を持つ端末がその記録を閲覧した直後、ダンは捕らえられ、人体実験で死んだ。",
+ why:"法を破ってでも、企業を裁くため。",
+ die:"「襲撃の可能性がある。至急、応援を——」通信は強制的に切断された。床に倒れたまま、防護服の人物が警察手帳を拾うのが見えた。「身元を示すものは、対応する遺体の近くへ置け」「生存者がいたように記録を調整する」",
+ role:"<b>あなたは、証拠の送り先を決める。</b><br>ただ警察へ送っても、内通者に握り潰される。握り潰されない受理系統を選べるのは、内部を知っているあなただけだ。<br><br>そして——<b>あなたが半年前に登録した記録は、まだ消されていない。</b>企業は事件を偽装したが、あなたのアカウントから登録された住所までは消し損ねている。<br><br><span class='hint'>手続きを信じたことが相棒を殺した。そして手続きを信じたことだけが、唯一残った正規のルートになる。</span>"},
+{n:"リン・ハオ",r:"ハッカー",
+ who:"自作のサポートAIを相棒に、腕試しで企業へ侵入していた。妹はリン・ユエ。",
+ sin:"「家族の回線を経由すると逆探知される」というAIの警告を無視した。企業はその回線から妹を特定し、誘拐して記憶への干渉実験の被験者にした。さらに情報を操作し、あなたを犯人に仕立て上げた。",
+ why:"情報支配を破壊するため。そして妹を取り戻すため。",
+ die:"手から力が抜けた。端末を床へ叩きつけ、最後の命令を入力した。「外はもう見張られてる。……送るな、隠せ」「誰も探さない場所へ」「いいから行け。俺のことは、探さなくていい」",
+ role:"<b>あなたが隠したものを、取り戻す。</b><br>半年前、あなたはサポートAIに「隠せ」と命じた。<b>あれは企業のシステムの最も奥に、いまも眠っている。</b><br><br>そこには仲間が集めた証拠がある。だが<b>あなたは預かっただけで、中身を知らない。</b>何が入っているかを知っているのは、預けた本人だけだ。<br><br><span class='hint'>妹を企業の視界に入れたのはあなたの回線だった。その回線を辿った監視経路が、いま隠れ場所になっている。</span>"},
+{n:"三枝 涼香",r:"ジャーナリスト",
+ who:"夫のイーサン・リードと二人で、不正を暴く報道番組を作っていた。",
+ sin:"潜入した夫に、もっと奥へ進むよう促した。届いた映像をすぐ公開せず、全国一斉配信の準備を優先した。完璧な形で報じたかったからだ。待つ間に企業は証拠を消し、夫は消息を絶った。",
+ why:"夫を取り戻すため。そして真相を報じるため。",
+ die:"カメラを柱へ固定した。低い機械音が響き、周囲の人々が次々に倒れた。カメラの映像には、誰かが非常口へ走る姿は映っていない。「記録媒体を回収」「公開用の映像はこちらで作る」",
+ role:"<b>あなたは、証拠を世界へ流す。</b><br>あなたが集めた証拠は、仲間の一人に預けてある。<b>中身を知っているのはあなただけだ。</b>どれがそれなのかを、あなたが見分けなければならない。<br><br>そして——<b>あなたが生前に確保した配信枠が、まだ生きている。</b>勤務先を経由したものは押さえられているが、「複数」のうち通していないものがあったはずだ。<br><br><span class='hint'>公開を遅らせたことが夫を失わせた。そして遅らせるために確保した枠だけが、いまも生きている。</span>"},
+{n:"カン・テホ",r:"東側組織の幹部",
+ who:"幼い頃に組織に拾われた。生身だけで「東最強」と呼ばれた。組織は家族だった。",
+ sin:"組を裏切った若い構成員グエン・ミンを、自らの手で企業の治験へ引き渡した。「生きて帰れたら、今度こそ全部返します」「……連れていけ」。何をされるか疑いながら、その後を調べなかった。ミンは人体実験で死んだ。",
+ why:"組への恩義のため。そして引き渡した人たちへ償うため。",
+ die:"義体が強制停止した。緊急切り離ししたが、生身にも力が入らなかった。床へ倒れながら見た。仲間たちが、まだ廃工場の中にいる。「誰も逃げてねえ……全員、ここにいる……」",
+ role:"<b>あなたは、証拠を外の世界へ渡す。</b><br>システムの内側にいる限り、証拠はいつでも消される。<b>外にいる人間が受け取って、隠し続けなければ意味がない。</b><br><br>心当たりは二つ。<b>あの武器商人</b>と、<b>あなたが引き渡した組員の身内</b>。だが東側は壊滅した。どちらが企業側なのかは、<b>5人の情報を突き合わせなければ分からない。</b><br><br><span class='hint'>あなたが売り渡した男には身内がいた。その人物がいま最も企業を憎み、あなたを許していない。</span>"}];
+
+// ── 被験者名簿（段階2で解錠）
+const ROSTER=[
+ ["ID-0417","グエン・ミン","処理完了","2066.11.03","PC5が企業へ引き渡した若い組員"],
+ ["ID-0522","ダニエル・アオキ","処理完了","2067.01.19","PC2の相棒"],
+ ["ID-0538","イーサン・リード","処理完了","2067.01.28","PC4の夫"],
+ ["ID-0601","リン・ユエ","再導入済","2067.03.—","PC3の妹。記憶を書き換えられて社会へ戻されている"],
+ ["ID-0———","日下部 灯","保留","—","PC1の幼なじみ。実験材料にはされていない"]];
+const WATCH=["ID-W-088","グエン・ラン","ID-0417の姉","継続監視"];
+
+// ── 第三テストで解放される検索記事
+const ART=[
+{id:"a1",src:"警察人事公報",t:"警視長 室橋剛毅、情報統括本部長へ",
+ l:"半年前の異動で、情報系統の統括権限を得ている。",
+ b:["室橋剛毅・警視長は半年前の異動で情報統括本部長に就任した。","現在、警察内部で扱われる全ての電子照会は、同本部を経由する。","本人は現職のまま、退職の予定はない。"],
+ k:["警視長","室橋","人事","異動","情報統括"]},
+{id:"a2",src:"警察内部ポータル（一般公開部）",t:"未処理案件一覧：登録から6か月を経過した案件",
+ l:"担当者不在のまま処理が止まっている案件の一覧。",
+ b:["登録から6か月を経過し、担当者不在のまま処理が停止している案件が一覧化されている。","このうち1件は、廃工場の住所が個人アカウントから登録されたまま、以降の更新がない。","未処理案件は、情報統括本部の管轄外にある監察系統へ自動的に引き継がれる。"],
+ k:["未処理案件","廃工場","住所","登録","監察"]},
+{id:"a3",src:"メディア業界紙",t:"報道機関3社、同一グループ傘下へ",
+ l:"半年前、大手報道機関が一斉に買収された。",
+ b:["半年前、大手報道機関3社が同一グループの傘下に入った。","買収後、各社の配信設備は統合基盤へ移行している。","移行の対象外となった小規模事業者が数社残っている。"],
+ k:["報道機関","買収","勤務先","配信","統合"]},
+{id:"a4",src:"配信インフラ年鑑",t:"独立系配信事業者リスト（統合基盤 未接続）",
+ l:"統合基盤に接続していない配信設備の一覧。",
+ b:["統合基盤へ接続していない独立系の配信事業者が、全国に7社残っている。","いずれも旧規格の接続予約を受け付けており、予約は解除されるまで無期限で保持される。","半年以上前に登録された未実行の予約が複数残っていると報告されている。"],
+ k:["独立系","配信事業者","配信枠","予約","統合基盤"]},
+{id:"a5",src:"月刊アンダーライン",t:"東側壊滅から半年 ── 生き残りはどこへ消えたか",
+ l:"旧構成員の多くが所在不明。一方で無傷の人物もいる。",
+ b:["東側の壊滅から半年が経ち、旧構成員の多くは所在が確認できていない。","一方、組織へ武器を供給していた仲介者は一度も摘発を受けておらず、活動を続けている。","組織外の縁者については、行政記録上の追跡が可能な者も残っている。"],
+ k:["東側","壊滅","生き残り","武器商人","仲介者","縁者"]},
+{id:"a6",src:"行政記録（照会結果）",t:"グエン・ラン ── 転居履歴と現住所",
+ l:"半年で3度の転居。監視対象リストに登録されている。",
+ b:["グエン・ランは半年のあいだに3度の転居を行っている。","弟の死亡について、行政へ複数回の照会を行った記録が残る。","いずれも「該当なし」として処理されている。"],
+ k:["グエン","ラン","転居","縁者","身内","照会"]}];
+
+// ── チェーン5段階
+const CH=[
+{pc:2,nm:"サーバーを開く",q:"隠された証拠は、企業システムのどこにあるのか。そして、どれが本物か。",
+ past:["消し切れなかった記録","破損した端末","追跡された回線"],
+ pastOk:["消し切れなかった記録","破損した端末"],
+ now:"a1", nowOk:false,
+ pick:["BLOCK-01 ／ 映像 ／ 暗号化済み","BLOCK-02 ／ 音声 ／ 断片","BLOCK-03 ／ 映像 ／ 配信用エンコード済み","BLOCK-04 ／ 文書 ／ 出所不明"],
+ pickOk:2,
+ pickQ:"サーバーに眠るデータブロック。<b>PC4だけが中身を知っている。</b>相談して選んでください。",
+ res:"監視経路の奥に、サーバーは隠れていた。自分の罪だった回線が、そのまま隠れ場所になっていた。<br><b>BLOCK-03 を取り出した。企業施設を撮影した映像。配信用にエンコードされている。</b>"},
+{pc:0,nm:"実験記録を要求する",q:"映像だけでは「人体実験がある」までしか証明できない。この5人が殺された証拠は、どこにあるのか。",
+ past:["不審な研究資料","企業へのアクセス","幼なじみの治療"],
+ pastOk:["不審な研究資料","企業へのアクセス"],
+ now:"none", nowOk:true,
+ pick:["UZUのシステムを破壊して奪う","署名者の権限で、正規の手続きとして要求する","サポートAIに侵入させる"],
+ pickOk:1,
+ pickQ:"どうやって開けるか。",
+ res:"UZUは、あなたを<b>その研究の承認者</b>として認識していた。正規の要求を、拒否できなかった。<br><b>被験者名簿が開示された。「名簿」タブで全員が閲覧できる。</b>"},
+{pc:1,nm:"送信先を決める",q:"警察へ送っても、内通者に握り潰される。握り潰されない受理系統はどこか。",
+ past:["相棒の警告","集合場所の記録","緊急通信"],
+ pastOk:["相棒の警告","集合場所の記録"],
+ now:"a2", nowOk:true,
+ pick:["情報統括本部（室橋警視長の管轄）","未処理案件を引き継ぐ監察系統","報道各社へ直接"],
+ pickOk:1,
+ pickQ:"どこへ送るか。",
+ res:"半年前に登録された廃工場の住所は、未処理案件として残っていた。<br><b>それは情報統括本部の管轄外へ、自動的に引き継がれる。</b><br>手続きを信じたことだけが、唯一残った正規のルートだった。"},
+{pc:4,nm:"外部協力者へ渡す",q:"外にいる人間が受け取って、隠し続けなければ意味がない。誰に託すか。",
+ past:["企業との人身取引","東側の保護","武器商人への連絡"],
+ pastOk:["企業との人身取引","東側の保護"],
+ now:"a5", nowOk:true,
+ pick:["武器商人「フェリクス」","グエン・ラン（引き渡した組員の姉）"],
+ pickOk:1,
+ pickQ:"<b>ここは間違えられる。</b>5人の情報を突き合わせてください。<br>名簿・警察記録・通信ログ・報道・あなたの記憶——それぞれに手がかりがあります。",
+ fail:"送信……応答なし。<br><b>相手は既に企業の管理下にあります。</b><br>一度も摘発されていない仲介者を選んだ判断は、誤りでした。",
+ res:"グエン・ランは、監視対象リストに載っていた。<b>狙われている側だった。</b><br>弟の死を、半年間ずっと照会し続けていた。すべて「該当なし」で処理されながら。<br><br><span class='hint'>彼女は、あなたを許してはいない。それでも受け取った。</span>"},
+{pc:3,nm:"全国へ流す",q:"企業の管理下にない配信設備はどこか。",
+ past:["配信テスト","勤務先の回線","未公開映像"],
+ pastOk:["配信テスト","勤務先の回線"],
+ now:"a4", nowOk:true,
+ pick:["統合基盤経由で一斉配信","独立系事業者に残った、半年前の未実行予約","SNSへ直接投稿"],
+ pickOk:1,
+ pickQ:"どの経路で流すか。",
+ res:"勤務先を経由したものは、すべて企業に押さえられていた。<br><b>だが「複数」のうち、通していないものがあった。</b><br>半年間、誰にもキャンセルされないまま、その予約は待っていた。"}];
+
+let db,room,S=null,me=null,code=null,tab="ho",tick=null,open=null,sel={past:[],pick:null,now:null};
+
+try{
+  if(typeof FIREBASE_CONFIG==="undefined"||String(FIREBASE_CONFIG.databaseURL).includes("ここに貼る"))
+    throw new Error("firebase-config.js が未設定です。");
+  db=getDatabase(initializeApp(FIREBASE_CONFIG));
+}catch(e){ $("err").innerHTML=`<div class="msg w">${e.message}</div>`; $("join").disabled=true; }
+
+$("seats").innerHTML=P5.map((n,i)=>`<button data-s="${i}">${n}<br><span class="hint">${NAME[i]}</span></button>`).join("");
+$("seats").querySelectorAll("[data-s]").forEach(b=>b.onclick=()=>{me=+b.dataset.s;boot()});
+$("join").onclick=async()=>{
+  const c=$("code").value.trim().toUpperCase(); if(c.length<2)return;
+  code=c; room=ref(db,"final/"+code);
+  const s=await get(room); if(!s.exists()) await set(room,fresh());
+  onValue(room,x=>{S=x.val();render()});
+  $("seatBox").classList.remove("hide");
+};
+function fresh(){ return {step:0,endAt:0,started:false,fails:0,votes:{},sent:null,logs:[]}; }
+function boot(){ $("lobby").classList.add("hide"); $("app").classList.remove("hide");
+  $("who").innerHTML=`<b>${P5[me]}</b>・${NAME[me]}`;
+  $("chips").innerHTML=["警視長","未処理案件","報道機関 買収","独立系 配信","東側 生き残り","グエン"]
+    .map(k=>`<span class="chip" data-k="${k}">${k}</span>`).join("");
+  $("chips").querySelectorAll("[data-k]").forEach(e=>e.onclick=()=>{$("kw").value=e.dataset.k;search()});
+  if(!tick)tick=setInterval(clock,500); render(); }
+const wr=o=>update(room,o);
+function push(o,t){o.logs=[t,...(o.logs||(S&&S.logs)||[])].slice(0,30)}
+
+function clock(){
+  if(!S||!S.endAt){$("tm").textContent="--:--";return}
+  const l=Math.max(0,Math.round((S.endAt-Date.now())/1000));
+  $("tm").textContent=Math.floor(l/60)+":"+String(l%60).padStart(2,"0");
+  const hot=l<=VOTE_AT;
+  $("tm").className="tm"+(hot?" hot":""); $("hd").className="hd"+(hot?" hot":"");
+  if(hot&&!S.warned&&me===0) wr({warned:true});
+}
+document.querySelectorAll(".tab").forEach(e=>e.onclick=()=>{
+  tab=e.dataset.t; document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x.dataset.t===tab));
+  ["ho","ch","se","ro"].forEach(k=>$("p"+k).classList.toggle("hide",k!==tab)); render();
+});
+$("go").onclick=search; $("kw").addEventListener("keydown",e=>{if(e.key==="Enter")search()});
+function search(){
+  open=null; const kw=$("kw").value.trim();
+  if(!kw){$("res").innerHTML='<div class="hint">言葉を入力してください。</div>';return}
+  const h=ART.filter(a=>a.k.some(x=>x.includes(kw)||kw.includes(x))||a.t.includes(kw)||a.b.join("").includes(kw));
+  $("res").innerHTML=h.length?h.map(a=>`<div class="hit" data-a="${a.id}">
+    <div class="src">${a.src}</div><div class="ti">${a.t}</div><div class="ld">${a.l}</div></div>`).join("")
+   :'<div class="hint">該当する記録は見つかりませんでした。</div>';
+  $("res").querySelectorAll("[data-a]").forEach(e=>e.onclick=()=>{
+    const a=ART.find(x=>x.id===e.dataset.a);
+    $("res").innerHTML=`<div class="doc"><div class="hint">${a.src}</div><h3>${a.t}</h3>
+      ${a.b.map(p=>`<p>${p}</p>`).join("")}</div>`;
+    open=a.id; render();
+  });
+}
+
+function render(){
+  if(!S||me===null)return;
+  const st=S.step;
+  $("prog").textContent = st>=5 ? "経路 5/5 完了" : `経路 ${st}/5`;
+
+  // 自分
+  const h=HO[me];
+  $("pho").innerHTML=`<div class="doc">
+    <h3>${h.n}</h3><div class="hint">${h.r}</div>
+    <h3>あなたは、誰だったか</h3><p>${h.who}</p>
+    <h3>あなたがしたこと</h3><p>${h.sin}</p>
+    <h3>廃工場に来た理由</h3><p>${h.why}</p>
+    <h3>そして、あなたは死んだ</h3><p class="q">${h.die}</p>
+    <p><b>あなたは半年前に殺されている。</b></p>
+    <h3>他の4人について</h3><p>あの4人は、<b>仲間だ。</b>競争相手ではない。<br>
+      UZUが最初に告げた「最も優秀な一体だけが生き残る」は、あなたたちを争わせるための言葉だ。</p>
+    <h3>第三テストでのあなたの役割</h3><p>${h.role}</p></div>`;
+
+  // 経路
+  $("pch").innerHTML=CH.map((c,i)=>{
+    const done=st>i, now=st===i, mine=c.pc===me;
+    let inner="";
+    if(done) inner=`<div class="res">${c.res}</div>`;
+    else if(now){
+      inner=`<div class="qs">${c.q}</div>`;
+      if(mine){
+        inner+=`<div class="sub">① 半年前の記録から、関係するものを2件</div>`
+          +c.past.map(p=>`<button class="opt ${sel.past.includes(p)?"sel":""}" data-p="${p}">${p}</button>`).join("");
+        if(c.now!=="none") inner+=`<div class="sub">② いまの状況を調べて、裏付けを取る</div>`
+          +`<button class="opt ${sel.now?"sel":""}" data-n="1">${sel.now?"✓ 調査タブで確認した":"調査タブで裏付けを取った"}</button>`;
+        inner+=`<div class="sub">③ ${c.pickQ}</div>`
+          +c.pick.map((p,j)=>`<button class="opt ${sel.pick===j?"sel":""}" data-k="${j}">${p}</button>`).join("");
+      } else inner+=`<div class="hint">${P5[c.pc]}（${NAME[c.pc]}）の担当です。情報を出し合ってください。</div>`;
+    } else inner=`<div class="hint">前の経路が繋がるまで進めません。</div>`;
+    return `<div class="step ${done?"done":""} ${now?"now":""}">
+      <div class="h"><span class="no">${i+1}</span><span class="nm">${c.nm}</span>
+      <span class="who">${P5[c.pc]}</span></div>${inner}</div>`;
+  }).join("")
+   + (st>=5?`<div class="msg g"><b>経路が繋がりました。</b><br>
+      あとは、報告プロセスへアクセスできる「最優秀個体」を1人選ぶだけです。<br>
+      <span class="hint">送り出された1人も、報告を終えれば破棄されます。誰も助かりません。</span></div>
+      <h2>最終選別</h2>`+P5.map((n,i)=>{
+        const v=Object.values(S.votes||{}).filter(x=>x===i).length;
+        return `<button class="opt ${(S.votes||{})[me]===i?"sel":""}" data-v="${i}">${n}　${NAME[i]}${v?`　── ${v}票`:""}</button>`;
+      }).join(""):"");
+  $("pch").querySelectorAll("[data-p]").forEach(b=>b.onclick=()=>{
+    const p=b.dataset.p; const i=sel.past.indexOf(p);
+    if(i>=0)sel.past.splice(i,1); else {if(sel.past.length>=2)sel.past.shift(); sel.past.push(p);} render(); });
+  $("pch").querySelectorAll("[data-n]").forEach(b=>b.onclick=()=>{sel.now=!sel.now;render()});
+  $("pch").querySelectorAll("[data-k]").forEach(b=>b.onclick=()=>{sel.pick=+b.dataset.k;render()});
+  $("pch").querySelectorAll("[data-v]").forEach(b=>b.onclick=()=>wr({["votes/"+me]:+b.dataset.v}));
+
+  // 名簿
+  $("pro").innerHTML = st>=2
+    ? `<div class="rst">被験体管理記録 ／ SUBJECT REGISTRY<br>━━━━━━━━━━━━━━━━━━<br>`
+      +ROSTER.map(r=>`${r[0]}　<span class="hi">${r[1]}</span>　${r[2]}　${r[3]}`).join("<br>")
+      +`<br>━━━━━━━━━━━━━━━━━━<br>関連監視対象 ／ WATCH LIST<br>`
+      +`${WATCH[0]}　<span class="hi">${WATCH[1]}</span>　${WATCH[2]}　${WATCH[3]}</div>
+       <div class="msg g">この名簿にあるのは、あなたたちが取り戻したかった人たちです。<br>
+       <span class="hint">「処理完了」「再導入済」「保留」──定義は、この資料に書かれていません。</span></div>`
+    : `<div class="hint">まだ開示されていません。経路② で開きます。</div>`;
+
+  // 下部
+  const c=CH[st], mine=c&&c.pc===me;
+  const bt=[];
+  if(!S.started&&me===0) bt.push(["開始","pri",()=>{const o={started:true,endAt:Date.now()+MIN*60000};push(o,"第三テスト 開始");wr(o)}]);
+  if(S.started&&st<5&&mine){
+    const ok=sel.past.length===2&&sel.pick!==null&&(c.now==="none"||sel.now);
+    bt.push([ok?"照合する":"①②③をすべて選んでください","pri",ok?submit:null]);
+  }
+  if(st>=5){
+    const vs=Object.values(S.votes||{});
+    bt.push([`最終選別　${vs.length}/5`,"", null]);
+    if(me===0&&vs.length===5) bt.push(["送り出す","pri",finish]);
+  }
+  $("bot").innerHTML=bt.map((x,i)=>`<button data-b="${i}" class="${x[1]}" ${x[2]?"":"disabled"}>${x[0]}</button>`).join("");
+  $("bot").querySelectorAll("[data-b]").forEach(e=>{const f=bt[+e.dataset.b][2];if(f)e.onclick=f});
+
+  $("msg").innerHTML = S.msg?`<div class="msg ${S.msgC||""}">${S.msg}</div>`:"";
+}
+
+function submit(){
+  const c=CH[S.step];
+  const pastOk=c.pastOk.every(p=>sel.past.includes(p));
+  if(!pastOk){ wr({msg:"照合失敗。この2件は、この経路に関係していません。",msgC:"w"}); return; }
+  if(sel.pick!==c.pickOk){
+    const o={fails:(S.fails||0)+1};
+    o.msg = c.fail || "その選択では経路が繋がりません。もう一度、情報を突き合わせてください。";
+    o.msgC="w"; push(o,`経路${S.step+1} 失敗`); wr(o); sel.pick=null; return;
+  }
+  const o={step:S.step+1,msg:c.res,msgC:"g"};
+  push(o,`経路${S.step+1}「${c.nm}」が繋がった`);
+  sel={past:[],pick:null,now:null};
+  wr(o);
+}
+function finish(){
+  const vs=Object.values(S.votes||{});
+  const cnt={}; vs.forEach(v=>cnt[v]=(cnt[v]||0)+1);
+  const top=Object.entries(cnt).sort((a,b)=>b[1]-a[1]);
+  const sent=+top[0][0];
+  const o={sent, msgC:"g"};
+  o.msg=`<b>${P5[sent]}・${NAME[sent]} が送り出されました。</b><br><br>`
+   +`証拠は独立系の配信枠から、全国へ流れた。<br>`
+   +`不正が報じられ、株価が下がり、役員が辞任し、調査委員会が設置される。<br><br>`
+   +`——そして、生体認証決済は今日も動いている。<br>`
+   +`3か月で報道は減り、半年で誰も話さなくなる。<br><br>`
+   +`だが。<br>コメント欄に、まだ書き込み続けている人がいる。<br>`
+   +`消えた名前を探している家族がいる。<br>データを持ったまま、どこかで生きている女がいる。<br><br>`
+   +`<b>一年後。</b><br>病室で、指が、動く。<br><br>`
+   +`<span class="hint">記録は消せる。記憶も消せる。消せないものが、一つだけあった。</span>`;
+  push(o,`最終選別：${P5[sent]} を送り出した`);
+  wr(o);
+}
+</script>
+</html>
