@@ -143,6 +143,12 @@ input{font-family:inherit;font-size:17px;background:var(--pan2);color:var(--fg);
 /* 情報データの1件 */
 .ie .it{font-size:13.5px;line-height:1.6}
 .ie.me .it{color:var(--acc)}
+/* 魂の記憶：共有できない */
+.ie.soul{border-left:3px solid var(--glw);padding-left:10px;margin:2px 0}
+.ie.soul .it{color:var(--glw)}
+.ie.soul.weak .it{color:#a99263}
+.ie .sl{font-size:11px;letter-spacing:.12em;color:var(--glw);margin-bottom:3px}
+.ie.soul.weak .sl{color:#a99263}
 .ir{display:flex;align-items:center;gap:10px;margin-top:4px}
 .shb{padding:5px 12px;font-size:12px;margin-left:auto;border-radius:14px}
 .tgts{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:7px}
@@ -217,8 +223,9 @@ h2{font-size:12px;letter-spacing:.16em;color:var(--dim);font-weight:400;margin:1
   <div class="bot" id="bot"></div>
 </div>
 
-<script src="cards.js"></script>
-<script src="firebase-config.js"></script>
+<!-- ?v= はキャッシュ避け。cards.js を更新したら数字を1つ増やすこと -->
+<script src="cards.js?v=6"></script>
+<script src="firebase-config.js?v=6"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getDatabase, ref, onValue, set, update, get, runTransaction }
@@ -240,34 +247,56 @@ function setFlash(html){
 }
 
 // ---------- 起動 ----------
+function lbErr(html){ $("lbErr").innerHTML = `<div class="msg w">${html}</div>`; }
 try {
-  if (String(FIREBASE_CONFIG.databaseURL).includes("ここに貼る")) throw new Error("cfg");
+  if (typeof STAGES === "undefined" || typeof PAIR === "undefined")
+    throw new Error("cards.js が古いか、読み込めていません。ページを再読み込み（キャッシュ削除）してください。");
+  if (typeof FIREBASE_CONFIG === "undefined" || String(FIREBASE_CONFIG.databaseURL).includes("ここに貼る"))
+    throw new Error("firebase-config.js が未設定です。README の手順で設定を貼り付けてください。");
   db = getDatabase(initializeApp(FIREBASE_CONFIG));
 } catch(e) {
-  $("lbErr").innerHTML = '<div class="msg w">firebase-config.js が未設定です。README の手順で Firebase の設定を貼り付けてください。</div>';
+  lbErr(e.message || "初期化に失敗しました。");
   $("bJoin").disabled = true;
 }
 
 $("bJoin").onclick = async () => {
   const c = $("code").value.trim().toUpperCase();
   if (c.length < 2) return;
+  try {
   code = c; roomRef = ref(db, "rooms/"+code);
   const snap = await get(roomRef);
-  if (!snap.exists()) await set(roomRef, fresh());
+  // 旧仕様のデータが残っている部屋は作り直す（deck があるのは旧版）
+  if (snap.exists() && (snap.val().stage === undefined || snap.val().deck !== undefined)){
+    await set(roomRef, fresh());
+  } else if (!snap.exists()) await set(roomRef, fresh());
   onValue(roomRef, s => { S = s.val(); render(); });
   if (SOLO){ // 1台で全席を動かす
     await update(roomRef, { seats:{0:"solo",1:"solo",2:"solo",3:"solo",4:"solo"}, host:0 });
     mySeat = 0; render(); return;
   }
   $("seatBox").classList.remove("hide");
+  } catch(e){ lbErr("接続に失敗しました：" + (e.message||e)); }
+};
+// 部屋をまっさらに戻す
+window.resetRoom = async () => {
+  if (!roomRef) return;
+  if (!confirm("この部屋を最初から作り直します。全員の進行が消えます。よろしいですか？")) return;
+  await set(roomRef, fresh());
+  mySeat = null; sel = []; lastTurnKey = null;
+  $("game").classList.add("hide"); $("lobby").classList.remove("hide");
+  lbErr("部屋をリセットしました。もう一度、席を選んでください。");
 };
 
 // その段階のカードを5人へ配り切る（山札は残さない）
+// 枚数の少ない人から順に配るので、全員が必ず同じ枚数になる（差が出ても最大1枚）
 function dealStage(n, ps){
   const st = STAGES[n];
   const pool = sh([...st.pairs, ...st.eff]);
-  let i = 0;
-  while (pool.length){ ps[i % 5].hand.push(pool.shift()); i++; }
+  while (pool.length){
+    let mi = 0;
+    for (let i = 1; i < 5; i++) if (ps[i].hand.length < ps[mi].hand.length) mi = i;
+    ps[mi].hand.push(pool.shift());
+  }
 }
 function fresh(){
   const ps = [0,1,2,3,4].map(()=>({ hand:[], info:[], dice:0, ovr:false }));
@@ -299,10 +328,14 @@ function resolvePairs(ps, _unused, o){
         const m = PAIR[c];
         if (!m || !ps[s].hand.includes(c) || !ps[s].hand.includes(m)) continue;
         ps[s].hand = ps[s].hand.filter(z => z !== c && z !== m);   // 補充は無い。手札は減る
-        ps[s].info = [...ps[s].info, { t: INFO[c], f: "自分" }];
+        const memId = (C[c].t === "mem") ? c : m;
+        ps[s].info = [...ps[s].info, { t: INFO[c], f: "自分", src: memId }];
         const owner = C[c].o, os = P5.indexOf(owner);
-        souls.push({ to: os, strong: os === s, by: s });
+        const strong = (os === s);
+        souls.push({ to: os, strong, by: s });
         evts.push({ by:s, info:INFO[c], a:c, m });
+        // 魂の記憶：当事者にだけ、共有できない記憶としてストックする
+        if (SOUL[memId]) putSoul(ps[os], memId, strong);
         o.pairs++;
         push(o, `<b>${P5[s]}</b> の手元で1組が成立（${c}＋${m}）`, "me");
         again = true; break;
@@ -325,19 +358,39 @@ function advanceStage(ps, o){
   const cur = (o.stage !== undefined) ? o.stage : (S.stage || 0);
   if (cur >= STAGES.length - 1){ finish(o); return; }
   const next = cur + 1;
-  const before = ps.map(p => [...p.hand]);
+  // 持ち越しなし。使わなかった効果カードは破棄される
+  const dropped = ps.reduce((n,p)=> n + p.hand.length, 0);
+  ps.forEach(p => { p.hand = []; });
   dealStage(next, ps);
   const fmap = {};
-  ps.forEach((p,i)=>{ fmap[i] = p.hand.filter(c => !before[i].includes(c)); });
+  ps.forEach((p,i)=>{ fmap[i] = [...p.hand]; });
   mergeFresh(o, fmap);
   o.stage = next;
   o.phase = "wait"; o.pend = null; o.endAt = 0;
-  o.offers = {}; o.inq = {};
+  o.offers = {}; o.inq = {}; o.reveal = null;
   o.msg = `<b>${STAGES[cur].name} 完了。</b>記録が全て復元されました。<br>`
+        + (dropped ? `未使用の補助プログラム ${dropped}件は破棄されました。<br>` : "")
         + `続いて <b>${STAGES[next].name}「${STAGES[next].sub}」</b> の記録が配布されます。`;
   o.msgC = "s";
   push(o, `<b>${STAGES[cur].name} 完了</b> → ${STAGES[next].name} へ`, "me");
 }
+// 魂の記憶を積む。既に弱い記憶があり、今回が強い記憶なら上書きする。
+// 戻り値：新しく蘇った／完全な形になった場合 true
+function putSoul(p, memId, strong){
+  const i = p.info.findIndex(x => x.soul && x.src === memId);
+  if (i >= 0){
+    if (!p.info[i].weak || !strong) return false;   // 既に完全、または今回も弱い
+    p.info = p.info.map((x,k)=> k===i
+      ? { t: SOUL[memId], f:"—", soul:true, weak:false, src:memId } : x);
+    return true;
+  }
+  p.info = [...p.info, {
+    t: strong ? SOUL[memId] : soulWeak(SOUL[memId]),
+    f:"—", soul:true, weak:!strong, src:memId
+  }];
+  return strong;
+}
+
 // 直前に手札へ入ったカード（NEW表示用）
 function mergeFresh(o, map){
   if (!Object.keys(map).length) return;
@@ -360,9 +413,15 @@ function render(){
   // 席選択
   $("seats").innerHTML = P5.map((n,i)=>{
     const taken = S.seats && S.seats[i];
-    return `<button data-seat="${i}" ${taken&&i!==mySeat?"disabled":""} class="${i===mySeat?"pri":""}">${n}${taken?" ●":""}</button>`;
-  }).join("");
-  [...$("seats").children].forEach(b => b.onclick = () => takeSeat(+b.dataset.seat));
+    // 埋まっている席も押せる（前の端末が離脱したときに入り直せるように）
+    return `<button data-seat="${i}" class="${i===mySeat?"pri":""}">${n}${taken&&i!==mySeat?" ●使用中":""}</button>`;
+  }).join("") + `<button onclick="resetRoom()" class="dgr" style="grid-column:1/-1;margin-top:6px">この部屋を最初から作り直す</button>`;
+  $("seats").querySelectorAll("[data-seat]").forEach(b => b.onclick = () => {
+    const i = +b.dataset.seat;
+    if (S.seats && S.seats[i] && i !== mySeat &&
+        !confirm(`${P5[i]} は使用中です。この席を引き継ぎますか？`)) return;
+    takeSeat(i);
+  });
   if (mySeat===null) return;
 
   $("lobby").classList.add("hide"); $("game").classList.remove("hide");
@@ -455,14 +514,20 @@ function render(){
   // --- 情報・ログ ---
   const info = arr(me().info);
   $("inf").innerHTML = info.length
-    ? info.map((x,i)=>`<div class="ie ${x.f==="自分"?"me":""}">
-        <div class="it">${i+1}. ${x.t}</div>
-        <div class="ir"><span class="hint">入手：${x.f}</span>
-          <button class="shb" onclick="toggleShare(${i})">${shareOpen===i?"閉じる":"渡す"}</button></div>
-        ${shareOpen===i ? `<div class="tgts">${
-            P5.map((n,j)=> j===mySeat ? "" : `<button data-send="${i}:${j}">${n}</button>`).join("")
-          }<button data-send="${i}:all" class="dgr">全員</button></div>` : ""}
-      </div>`).join("")
+    ? info.map((x,i)=> x.soul
+      ? `<div class="ie soul ${x.weak?"weak":""}">
+          <div class="sl">${x.weak?"◆ 弱い記憶（音だけが、遠くで）":"◆ 蘇った記憶"}</div>
+          <div class="it">${x.t}</div>
+          <div class="ir"><span class="hint">これは渡せません。口で伝えるしかない。</span></div>
+        </div>`
+      : `<div class="ie ${x.f==="自分"?"me":""}">
+          <div class="it">${x.t}</div>
+          <div class="ir"><span class="hint">入手：${x.f}</span>
+            <button class="shb" onclick="toggleShare(${i})">${shareOpen===i?"閉じる":"渡す"}</button></div>
+          ${shareOpen===i ? `<div class="tgts">${
+              P5.map((n,j)=> j===mySeat ? "" : `<button data-send="${i}:${j}">${n}</button>`).join("")
+            }<button data-send="${i}:all" class="dgr">全員</button></div>` : ""}
+        </div>`).join("")
     : '<div class="hint">まだ情報がありません。手札に対応が揃うと自動で溜まります。</div>';
   $("inf").querySelectorAll("[data-send]").forEach(b=>b.onclick=()=>{
     const [i,to] = b.dataset.send.split(":"); sendInfo(Number(i), to);
@@ -495,9 +560,8 @@ async function takeSeat(i){
   await runTransaction(roomRef, s => {
     if (!s) return s;
     s.seats = s.seats || {};
-    if (s.seats[i] && s.seats[i] !== myId()) return;
     Object.keys(s.seats).forEach(k => { if (s.seats[k]===myId()) delete s.seats[k]; });
-    s.seats[i] = myId();
+    s.seats[i] = myId();   // 使用中でも引き継ぐ（確認は呼び出し側で済ませている）
     if (s.host === null || s.host === undefined) s.host = i;
     return s;
   });
@@ -796,17 +860,22 @@ let shareOpen = null;   // 「渡す」を開いている情報の番号
 window.toggleShare = i => { shareOpen = (shareOpen===i) ? null : i; render(); };
 function sendInfo(idx, to){
   const info = arr(me().info)[idx]; if (!info) return;
+  if (info.soul){ setFlash("この記憶は渡せません。口で伝えるしかありません。"); return; }
   const targets = (to==="all") ? [0,1,2,3,4].filter(i=>i!==mySeat) : [Number(to)];
   const ps = clonePs();
-  const sent = [];
+  const sent = [], revived = [];
   targets.forEach(t=>{
-    if (ps[t].info.some(x => x.t === info.t)) return;   // 既に持っていれば入れない
-    ps[t].info = [...ps[t].info, { t: info.t, f: P5[mySeat] }];
+    if (ps[t].info.some(x => !x.soul && x.t === info.t)) return;   // 既に持っていれば入れない
+    ps[t].info = [...ps[t].info, { t: info.t, f: P5[mySeat], src: info.src }];
     sent.push(t);
+    // 渡した相手が、その出来事の当事者だった場合 ── 記憶が完全な形で蘇る
+    if (info.src && SOUL[info.src] && C[info.src].o === P5[t]){
+      if (putSoul(ps[t], info.src, true)) revived.push(t);
+    }
   });
   const u = { ps };
   if (sent.length){
-    u.infoEvt = { at: Date.now(), to: sent, from: mySeat };
+    u.infoEvt = { at: Date.now(), to: sent, from: mySeat, revived };
     push(u, `${P5[mySeat]} → ${sent.map(t=>P5[t]).join("・")} へ情報データを共有`);
     setFlash(`<b>情報を渡しました</b><br>${sent.map(t=>P5[t]).join("・")} へ`);
   } else {
@@ -855,9 +924,14 @@ setInterval(()=>{
   if (S.infoEvt.at === lastInfo) return;
   lastInfo = S.infoEvt.at;
   if (!arr(S.infoEvt.to).includes(mySeat)) return;
-  setFlash(`<b>${P5[S.infoEvt.from]} から情報データを受け取りました</b><br>情報タブで確認できます。`);
+  const woke = arr(S.infoEvt.revived).includes(mySeat);
+  setFlash(woke
+    ? `<b>${P5[S.infoEvt.from]} から受け取った記録が、記憶を呼び起こした。</b><br>`
+      + `途切れていた音の続きが、映像になって戻ってくる。<br>`
+      + `<span class="hint">情報タブで、完全な形になった記憶を確認できます。</span>`
+    : `<b>${P5[S.infoEvt.from]} から情報データを受け取りました</b><br>情報タブで確認できます。`);
   showTab("info");
-  if (navigator.vibrate) navigator.vibrate(50);
+  if (navigator.vibrate) navigator.vibrate(woke ? [90,60,90,60,140] : 50);
 }, 400);
 
 // ペア成立：成立させた本人にだけ、得た情報の中身を出す
