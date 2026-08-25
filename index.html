@@ -81,6 +81,9 @@ input{font-family:inherit;font-size:17px;background:var(--pan2);color:var(--fg);
 .ck{font-size:12px;letter-spacing:.1em;font-weight:700}
 .crec .ck{color:#8fb8d8}.cmem .ck{color:#d3aee0}.ceff .ck{color:var(--wrn)}.cjok .ck{color:#9aa4ac}
 .ct{font-size:13px;line-height:1.6;flex:1}
+.lbl{font-size:12.5px;font-weight:700;color:var(--glw);letter-spacing:.04em;
+  border-top:1px solid var(--ln);border-bottom:1px solid var(--ln);padding:3px 0;margin:1px 0}
+.lb2{display:block;color:var(--glw);font-size:12.5px;margin:2px 0 4px}
 .tg{position:absolute;top:8px;right:9px;font-size:12px;color:var(--glw)}
 .selno{position:absolute;top:-8px;left:-8px;width:24px;height:24px;border-radius:50%;
   background:var(--acc);color:#06110f;font-size:13px;font-weight:700;
@@ -225,8 +228,8 @@ h2{font-size:12px;letter-spacing:.16em;color:var(--dim);font-weight:400;margin:1
 </div>
 
 <!-- ?v= はキャッシュ避け。cards.js を更新したら数字を1つ増やすこと -->
-<script src="cards.js?v=8"></script>
-<script src="firebase-config.js?v=8"></script>
+<script src="cards.js?v=10"></script>
+<script src="firebase-config.js?v=10"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getDatabase, ref, onValue, set, update, get, runTransaction }
@@ -292,7 +295,14 @@ const INIT_HAND = 2;   // 段階開始時に配る枚数。残りは山札にな
 // その段階のカードを配り、残りを山札として返す
 function dealStage(n, ps){
   const st = STAGES[n];
-  const pool = sh([...st.pairs, ...st.eff]);
+  let pool = sh([...st.pairs, ...st.eff]);
+  if (n === 0 && typeof TUTORIAL_DEAL !== "undefined"){
+    // 第1段階だけは固定配札。全員が同じ手順を1回ずつ体験できる輪になっている
+    TUTORIAL_DEAL.forEach((cards, i) => cards.forEach(c => {
+      ps[i].hand.push(c); pool = pool.filter(z => z !== c);
+    }));
+    return pool;
+  }
   for (let k = 0; k < INIT_HAND; k++)
     for (let i = 0; i < 5; i++) if (pool.length) ps[i].hand.push(pool.shift());
   return pool;
@@ -435,8 +445,25 @@ function render(){
   $("whose").textContent = S.phase==="round" ? "全員同時に行動できます" : "";
 
   // --- やることバナー ---
+  const tut = S.phase==="round" && (S.stage||0)===0 && S.round===1;
+  const myHand = arr(me().hand);
+  const myPubNow = Object.entries(S.pub||{}).filter(([,o])=>o===mySeat).map(([c])=>c);
+  const tutRec = myHand.find(c=>C[c].t==="rec");
+  const tutMem = myHand.find(c=>C[c].t==="mem" && C[c].o===P5[mySeat]);
+  const step1 = myPubNow.some(c=>C[c].t==="rec");
+  const step2 = arr(me().info).some(x=>!x.soul);
   $("cue").innerHTML =
-      S.phase==="round"
+      tut
+      ? `<div class="cue turn"><span class="big">チュートリアル ── 1周やってみましょう</span>
+          <div style="margin-top:6px;line-height:1.9">
+          ${step1?"✅":"①"} <b>あなたの事件記録を「公開」</b>してください${tutRec&&!step1?`（<b>${LABEL[tutRec]||tutRec}</b>）`:""}<br>
+          ${step1?"②":"②"} <b>「場」タブ</b>を開き、金色に光っているあなたの記憶記録
+             ${tutMem?`（<b>${LABEL[tutMem]||tutMem}</b>）`:""}に<b>対応する記録</b>を探してください<br>
+          ③ 持っている人に<b>声をかけて渡してもらう</b>（相手も同じことをしています）<br>
+          ${step2?"✅":"④"} 受け取ると<b>自動的に対応が成立</b>し、情報と記憶が手に入ります
+          </div>
+          <div class="hint" style="margin-top:6px">全員がこの輪の中にいます。あなたの記録も、誰かが必要としています。</div></div>`
+      : S.phase==="round"
       ? `<div class="cue"><span class="big">交渉ラウンド</span>
           手札を1枚タップして <b>「公開」</b>すると、場に出て全員が読めます。<br>
           <b>事件記録は危険性が低い情報です。まず出し合って、対応を揃えることを優先しましょう。</b><br>
@@ -465,9 +492,9 @@ function render(){
       <div class="pm">手札 ${hand.length}件（公開 ${mine.length} ／ 伏せ ${hidden.length}）　情報 ${arr(p.info).length}件</div>
       ${mine.map(c=>{
         const grab = pickPub && pickPub.list.some(([x])=>x===c);
-        return `<div class="mn ${grab?"tap":""}" ${grab?`data-grab="${c}"`:""}><span class="mid">${c}　${C[c].t==="rec"?"事件記録":C[c].t==="mem"?"記憶記録":"補助"}${grab?" ── タップで差押":""}</span>${C[c].x}</div>`;
+        return `<div class="mn ${grab?"tap":""}" ${grab?`data-grab="${c}"`:""}><span class="mid">${c}　${C[c].t==="rec"?"事件記録":C[c].t==="mem"?"記憶記録":"補助"}${grab?" ── タップで差押":""}</span>${LABEL[c]?`<b class="lb2">${LABEL[c]}</b>`:""}${C[c].x}</div>`;
       }).join("")}
-      ${rv.length?rv.filter(c=>!mine.includes(c)).map(c=>`<div class="mn"><span class="mid">${c}　閲覧済み</span>${C[c].x}</div>`).join(""):""}
+      ${rv.length?rv.filter(c=>!mine.includes(c)).map(c=>`<div class="mn"><span class="mid">${c}　閲覧済み</span>${LABEL[c]?`<b class="lb2">${LABEL[c]}</b>`:""}${C[c].x}</div>`).join(""):""}
       ${hidden.length?`<div class="slots">${hidden.map((c,k)=>`<div class="slot">${k+1}</div>`).join("")}</div>`:""}
     </div>`;
   }).join("");
@@ -488,7 +515,9 @@ function render(){
       ${isNew&&!isPub?'<span class="newtag">NEW</span>':""}
       ${isPub?'<span class="newtag" style="background:var(--dim)">公開中</span>':""}
       ${own?'<span class="tg">◆ 自分</span>':""}
-      <div class="ci">${c}</div><div class="ck">${k}</div><div class="ct">${d.x}</div></div>`;
+      <div class="ci">${c}</div><div class="ck">${k}</div>
+      ${LABEL[c]?`<div class="lbl">${LABEL[c]}</div>`:""}
+      <div class="ct">${d.x}</div></div>`;
   };
   const closed = hand.filter(c=>!myPub.includes(c));
   $("hand").innerHTML = closed.map(cardHTML).join("")
@@ -766,7 +795,7 @@ function renderInq(){
       : (mine ? `${P5[q.to]} だけに見せています` : `${P5[q.by]} があなただけに見せた`);
     return `<div class="inq ${q.all?"":"priv"}">
       <div class="ih">${head}　<span class="hint">${q.card}／${kind}</span></div>
-      <div class="ib">${d.x}</div>
+      ${LABEL[q.card]?`<div class="lbl" style="margin:4px 0">${LABEL[q.card]}</div>`:""}\n      <div class="ib">${d.x}</div>
       ${mine
         ? `<button data-x="${id}" class="dgr">取り下げる</button>`
         : `<button data-r="${id}" ${sel.length===1?"":"disabled"}>${sel.length===1?`${sel[0]} を渡す`:"応じる（手札を1枚選ぶ）"}</button>`}
