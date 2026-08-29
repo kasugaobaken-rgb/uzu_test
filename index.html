@@ -153,6 +153,9 @@ input{font-family:inherit;font-size:17px;background:var(--pan2);color:var(--fg);
 .ie.soul.weak .it{color:#a99263}
 .ie .sl{font-size:11px;letter-spacing:.12em;color:var(--glw);margin-bottom:3px}
 .ie.soul.weak .sl{color:#a99263}
+/* 説明を持たないノイズ表示（現象名を出さないための表示） */
+.nz{display:block;font-family:ui-monospace,Menlo,monospace;letter-spacing:.24em;
+  color:var(--glw);opacity:.85;font-size:13px;line-height:1.9}
 .ir{display:flex;align-items:center;gap:10px;margin-top:4px}
 .shb{padding:5px 12px;font-size:12px;margin-left:auto;border-radius:14px}
 .tgts{display:grid;grid-template-columns:repeat(5,1fr);gap:5px;margin-top:7px}
@@ -220,16 +223,14 @@ h2{font-size:12px;letter-spacing:.16em;color:var(--dim);font-weight:400;margin:1
   <div class="pane hide" id="pTable"><div id="pcs"></div></div>
   <div class="pane hide" id="pInfo">
     <div class="log" id="inf"></div>
-    <h2>進行ログ</h2>
-    <div class="log" id="lg"></div>
   </div>
 
   <div class="bot" id="bot"></div>
 </div>
 
 <!-- ?v= はキャッシュ避け。cards.js を更新したら数字を1つ増やすこと -->
-<script src="cards.js?v=10"></script>
-<script src="firebase-config.js?v=10"></script>
+<script src="cards.js?v=11"></script>
+<script src="firebase-config.js?v=11"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getDatabase, ref, onValue, set, update, get, runTransaction }
@@ -269,8 +270,8 @@ $("bJoin").onclick = async () => {
   try {
   code = c; roomRef = ref(db, "rooms/"+code);
   const snap = await get(roomRef);
-  // 旧仕様のデータが残っている部屋は作り直す（deck があるのは旧版）
-  if (snap.exists() && (snap.val().stage === undefined || snap.val().deck !== undefined)){
+  // 旧仕様のデータが残っている部屋は作り直す
+  if (snap.exists() && snap.val().schemaVersion !== 2){
     await set(roomRef, fresh());
   } else if (!snap.exists()) await set(roomRef, fresh());
   onValue(roomRef, s => { S = s.val(); render(); });
@@ -292,6 +293,7 @@ window.resetRoom = async () => {
 };
 
 const INIT_HAND = 2;   // 段階開始時に配る枚数。残りは山札になり、毎ラウンド1枚ずつ届く
+const GAME_SEC = 45 * 60; // 第二テストの実プレイ上限
 // その段階のカードを配り、残りを山札として返す
 function dealStage(n, ps){
   const st = STAGES[n];
@@ -311,22 +313,26 @@ function fresh(){
   const ps = [0,1,2,3,4].map(()=>({ hand:[], info:[] }));
   const deck = dealStage(0, ps);
   return {
-    phase:"lobby", stage:0, round:1, pairs:0, endAt:0, host:null, deck,
+    schemaVersion:2, phase:"lobby", stage:0, round:1, pairs:0, endAt:0, gameEndAt:0, host:null, deck,
     seats:{}, inq:{}, pub:{}, reveal:null,
     msg:"全員が席に着いたら、ホストの端末で「開始」を押してください。", logs:[], ps
   };
 }
 // 現在の段階で、まだ揃っていない対応の数
-const pairsLeft = ps => ps.reduce((n,p)=> n + arr(p.hand).filter(c=>PAIR[c]).length, 0) / 2;
+const pairsLeft = (ps, deck=[]) => (
+  ps.reduce((n,p)=> n + arr(p.hand).filter(c=>PAIR[c]).length, 0)
+  + arr(deck).filter(c=>PAIR[c]).length
+) / 2;
 const P5 = ["PC1","PC2","PC3","PC4","PC5"];
 const me = () => S.ps[mySeat];
 const wr = o => update(roomRef, o);
+// 運営検証用。プレイヤー画面には表示しない。
 function push(o, t, cls){ o.logs = [ {t, c:cls||""}, ...(o.logs || arr(S.logs)) ].slice(0,40); }
 
 // ---------- 自動照合 ----------
 // 手札に記憶記録と事件記録の対応が揃った瞬間、自動で情報データへ落とし込む。
 // 補充によって新たな対応が生まれることがあるので、揃わなくなるまで繰り返す。
-function resolvePairs(ps, _unused, o){
+function resolvePairs(ps, deck, o){
   const souls = [], evts = [];
   let again = true, guard = 0;
   o.pairs = (o.pairs !== undefined) ? o.pairs : (S.pairs || 0);
@@ -346,7 +352,7 @@ function resolvePairs(ps, _unused, o){
         // 魂の記憶：当事者にだけ、共有できない記憶としてストックする
         if (SOUL[memId]) putSoul(ps[os], memId, strong);
         o.pairs++;
-        push(o, `<b>${P5[s]}</b> の手元で1組が成立（${c}＋${m}）`, "me");
+        push(o, `1組成立（内部記録：${P5[s]}／${c}＋${m}）`, "me");
         again = true; break;
       }
     }
@@ -354,12 +360,13 @@ function resolvePairs(ps, _unused, o){
   if (souls.length) o.souls = { at: Date.now(), list: souls };
   if (evts.length){
     o.pairEvt = { at: Date.now(), list: evts };
-    o.msg = evts.map(e=>`◆ <b>${P5[e.by]}</b> の手元で1組が成立しました（${e.a}＋${e.m}）`).join("<br>")
-          + `<br><span class="hint">内容が読めるのは、成立させた本人だけです</span>`;
+    o.msg = `◆ 誰かの手元で${evts.length}組の照合が成立しました。`
+          + `<br><span class="hint">成立させた個体と内容は公開されません</span>`;
     o.msgC = "s";
   }
   // その段階の対応が全て揃ったら、次の段階へ
-  if (pairsLeft(ps) === 0) advanceStage(ps, o);
+  const activeDeck = (o.deck !== undefined) ? arr(o.deck) : (deck !== null && deck !== undefined ? arr(deck) : arr(S.deck));
+  if (activeDeck.length === 0 && pairsLeft(ps, activeDeck) === 0) advanceStage(ps, o);
   return souls;
 }
 // 段階の進行
@@ -384,16 +391,11 @@ function advanceStage(ps, o){
   o.msgC = "s";
   push(o, `<b>${STAGES[cur].name} 完了</b> → ${STAGES[next].name} へ`, "me");
 }
-// 魂の記憶を積む。既に弱い記憶があり、今回が強い記憶なら上書きする。
-// 戻り値：新しく蘇った／完全な形になった場合 true
+// 魂の記憶を積む。強度は最初に誰がペアを作ったかで確定し、後から変化しない。
+// 戻り値：新しく保存した場合 true
 function putSoul(p, memId, strong){
   const i = p.info.findIndex(x => x.soul && x.src === memId);
-  if (i >= 0){
-    if (!p.info[i].weak || !strong) return false;   // 既に完全、または今回も弱い
-    p.info = p.info.map((x,k)=> k===i
-      ? { t: SOUL[memId], f:"—", soul:true, weak:false, src:memId } : x);
-    return true;
-  }
+  if (i >= 0) return false;
   p.info = [...p.info, {
     t: strong ? SOUL[memId] : soulWeak(SOUL[memId]),
     f:"—", soul:true, weak:!strong, src:memId
@@ -438,7 +440,7 @@ function render(){
 
   // --- ヘッダ ---
   $("rc").innerHTML = `<b>${code}</b>・${P5[mySeat]}${SOLO?" <span class='hint'>SOLO</span>":""}`;
-  $("rd").textContent = S.round; $("dk").textContent = pairsLeft(S.ps); $("dkn").textContent = arr(S.deck).length;
+  $("rd").textContent = S.round; $("dk").textContent = pairsLeft(S.ps, S.deck); $("dkn").textContent = arr(S.deck).length;
   $("stg").innerHTML = STAGES[S.stage||0].name;
   $("pr").textContent = S.pairs;
   $("ph").textContent = {lobby:"待機中",round:"交渉ラウンド",wait:"段階の切替",over:"終了"}[S.phase]||"";
@@ -532,9 +534,8 @@ function render(){
   $("inf").innerHTML = info.length
     ? info.map((x,i)=> x.soul
       ? `<div class="ie soul ${x.weak?"weak":""}">
-          <div class="sl">${x.weak?"◆ 弱い記憶（音だけが、遠くで）":"◆ 蘇った記憶"}</div>
+          <div class="sl">▓▒░▒▓ ──────────</div>
           <div class="it">${x.t}</div>
-          <div class="ir"><span class="hint">これは渡せません。口で伝えるしかない。</span></div>
         </div>`
       : `<div class="ie ${x.f==="自分"?"me":""}">
           <div class="it">${x.t}</div>
@@ -548,8 +549,6 @@ function render(){
   $("inf").querySelectorAll("[data-send]").forEach(b=>b.onclick=()=>{
     const [i,to] = b.dataset.send.split(":"); sendInfo(Number(i), to);
   });
-  $("lg").innerHTML = arr(S.logs).map(l=>`<div class="${l.c}">${l.t}</div>`).join("");
-
   // --- タブ ---
   $("nHand").textContent = hand.length;
   $("nTbl").textContent = "";
@@ -631,10 +630,12 @@ function beginRound(){
   o.round = (S.phase === "lobby" || S.phase === "wait") ? (S.round || 1) : (S.round || 1) + 1;
   o.fresh = null;
   mergeFresh(o, got);
-  o.endAt = Date.now() + ROUND_SEC * 1000;
+  const gameEndAt = S.gameEndAt || (Date.now() + GAME_SEC * 1000);
+  o.gameEndAt = gameEndAt;
+  o.endAt = Math.min(Date.now() + ROUND_SEC * 1000, gameEndAt);
   o.msg = ""; o.msgC = "";
   push(o, `<b>R${o.round}</b> 開始 ── 全員が記録を1件ずつ受信`);
-  resolvePairs(ps, null, o);
+  resolvePairs(ps, deck, o);
   wr(o);
 }
 function finish(o){
@@ -649,7 +650,30 @@ function finish(o){
   o.msgC = "s";
 }
 function onTimeout(){
-  if (S.phase === "round") beginRound();   // 時間切れで自動的に次のラウンドへ
+  if (S.gameEndAt && Date.now() >= S.gameEndAt) forceFinishAtLimit();
+  else if (S.phase === "round") beginRound();   // ラウンド時間切れで次へ
+}
+
+// 45分上限。未配布・未成立の記録はUZUが自動復元し、必ず投票へ進める。
+function forceFinishAtLimit(){
+  const ps = clonePs();
+  let cursor = 0;
+  for (let st=S.stage||0; st<STAGES.length; st++){
+    const memIds = STAGES[st].pairs.filter(c=>C[c]&&C[c].t==="mem");
+    for (const memId of memIds){
+      if (ps.some(p=>arr(p.info).some(x=>!x.soul&&x.src===memId))) continue;
+      const owner = P5.indexOf(C[memId].o);
+      const to = cursor++ % 5;
+      ps[to].info = [...arr(ps[to].info), {t:INFO[memId],f:"UZU自動復元",src:memId}];
+      if (SOUL[memId]) putSoul(ps[owner],memId,owner===to);
+    }
+  }
+  ps.forEach(p=>{p.hand=arr(p.hand).filter(c=>!PAIR[c]&&c!=="X-01")});
+  ps[0].hand.push("X-01");
+  const o={ps,deck:[],stage:2,pairs:25,phase:"over",endAt:0,
+    msg:"<b>実プレイ45分が終了しました。</b><br>未復元の記録はUZUが自動処理しました。犯人投票へ進んでください。<br><span class='hint'>PC1の手元に、対応のない1件が残っています。</span>",msgC:"w"};
+  push(o,"実プレイ45分終了。残りの記録を自動復元");
+  wr(o);
 }
 
 // ---------- 公開（場に出す） ----------
@@ -854,7 +878,7 @@ let shareOpen = null;   // 「渡す」を開いている情報の番号
 window.toggleShare = i => { shareOpen = (shareOpen===i) ? null : i; render(); };
 function sendInfo(idx, to){
   const info = arr(me().info)[idx]; if (!info) return;
-  if (info.soul){ setFlash("この記憶は渡せません。口で伝えるしかありません。"); return; }
+  if (info.soul){ setFlash('<span class="nz">▓▒░ ────── ▓░▒</span>'); return; }
   const targets = (to==="all") ? [0,1,2,3,4].filter(i=>i!==mySeat) : [Number(to)];
   const ps = clonePs();
   const sent = [], revived = [];
@@ -862,10 +886,7 @@ function sendInfo(idx, to){
     if (ps[t].info.some(x => !x.soul && x.t === info.t)) return;   // 既に持っていれば入れない
     ps[t].info = [...ps[t].info, { t: info.t, f: P5[mySeat], src: info.src }];
     sent.push(t);
-    // 渡した相手が、その出来事の当事者だった場合 ── 記憶が完全な形で蘇る
-    if (info.src && SOUL[info.src] && C[info.src].o === P5[t]){
-      if (putSoul(ps[t], info.src, true)) revived.push(t);
-    }
+    // 強度は「誰がペアを作ったか」で確定する。後から情報を受け取っても強度は変わらない。
   });
   const u = { ps };
   if (sent.length){
@@ -935,9 +956,8 @@ setInterval(()=>{
   if (!arr(S.infoEvt.to).includes(mySeat)) return;
   const woke = arr(S.infoEvt.revived).includes(mySeat);
   setFlash(woke
-    ? `<b>${P5[S.infoEvt.from]} から受け取った記録が、記憶を呼び起こした。</b><br>`
-      + `途切れていた音の続きが、映像になって戻ってくる。<br>`
-      + `<span class="hint">情報タブで、完全な形になった記憶を確認できます。</span>`
+    ? `<b>${P5[S.infoEvt.from]} から情報データを受け取りました</b><br>情報タブで確認できます。`
+      + `<br><br><span class="nz">▓▒░▒▓░ ──────────</span>`
     : `<b>${P5[S.infoEvt.from]} から情報データを受け取りました</b><br>情報タブで確認できます。`);
   showTab("info");
   if (navigator.vibrate) navigator.vibrate(woke ? [90,60,90,60,140] : 50);
@@ -953,7 +973,7 @@ setInterval(()=>{
   if (!mine.length) return;
   setFlash(`<b>照合が成立しました（${mine.length}組）</b><br>`
     + mine.map(e=>`${e.a}＋${e.m}<br>▶ ${e.info}`).join("<br><br>")
-    + `<br><br><span class="hint">情報タブに保存されました。山札から${mine.reduce((s,e)=>s+e.got,0)}枚補充されています。</span>`);
+    + `<br><br><span class="hint">情報タブに保存されました。ペア成立による補充はありません。</span>`);
   tab = "hand";
   if (navigator.vibrate) navigator.vibrate([30,40,30]);
 }, 400);
@@ -963,15 +983,9 @@ setInterval(()=>{
   if (!S || !S.souls || mySeat===null) return;
   if (S.souls.at === lastSoul) return;
   lastSoul = S.souls.at;
-  const mine = arr(S.souls.list).filter(x => x.to === mySeat);
-  if (!mine.length) return;
-  const strong = mine.some(x => x.strong);
-  const t = strong
-    ? "◆ 強い記憶が蘇った。映像と音が、はっきりと戻ってくる。"
-    : "◆ 弱い記憶。音だけが、遠くで鳴っている。";
-  $("msg").innerHTML = `<div class="msg s">${t}${mine.length>1?`<br>（${mine.length}件）`:""}
-    <br><span class="hint">この表示はあなたにしか出ていません</span></div>`;
-  if (navigator.vibrate) navigator.vibrate(strong?[80,60,80]:[40]);
+  // 5台すべてに同じノイズを出し、誰へ届いたかを隠す。実データは当事者の情報欄にだけ入っている。
+  setFlash('<span class="nz">▓▒░▒▓░▒░▓▒ ──────────</span>');
+  if (navigator.vibrate) navigator.vibrate([70,50,70]);
 }, 500);
 </script>
 </html>
