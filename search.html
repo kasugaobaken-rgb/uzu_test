@@ -320,7 +320,8 @@ function isCorrect(q, raw){
   const v = toHalf(String(raw).trim());
   const up = v.toUpperCase();
   const digits = (v.match(/\d+/) || [null])[0];
-  return q.answers.some(a => /^\d+$/.test(a) ? digits === a : up.includes(a.toUpperCase()));
+  const answers = q.answers.includes("第4相") ? [...q.answers, "4", "四"] : q.answers;
+  return answers.some(a => /^\d+$/.test(a) ? digits === a : up.includes(a.toUpperCase()));
 }
 
 /* ── 記事の可視範囲 ──────────────────────────── */

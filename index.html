@@ -259,6 +259,7 @@ const arr = x => !x ? [] : Array.isArray(x) ? x.filter(v=>v!=null) : Object.valu
 
 let db, roomRef, S=null, mySeat=null, code=null, sel=[], tick=null;
 const SOLO = new URLSearchParams(location.search).has("solo");
+const GM = new URLSearchParams(location.search).get("gm") === "1";
 
 // 自分の端末にだけ出す一時メッセージ（DBに書かないので他人には見えない）
 let flash = null;
@@ -294,6 +295,10 @@ $("bJoin").onclick = async () => {
     await set(roomRef, fresh());
   } else if (!snap.exists()) await set(roomRef, fresh());
   onValue(roomRef, s => { S = s.val(); render(); });
+  if (GM){
+    await update(roomRef, { gmHost: myId() });
+    render(); return;
+  }
   if (SOLO){ // 1台で全席を動かす
     await update(roomRef, { seats:{0:"solo",1:"solo",2:"solo",3:"solo",4:"solo"}, host:0 });
     mySeat = 0; render(); return;
@@ -436,6 +441,7 @@ const clonePs = () => S.ps.map(x => ({ ...x, hand: arr(x.hand), info: arr(x.info
 let lastTurnKey = null;
 function render(){
   if (!S) return;
+  if (GM){ renderGM(); startTick(); return; }
   // 席選択
   $("seats").innerHTML = P5.map((n,i)=>{
     const taken = S.seats && S.seats[i];
@@ -630,7 +636,24 @@ async function takeSeat(i){
 }
 // sessionStorage はタブごとに独立するので、1台で複数タブを開けば別プレイヤーとして扱える
 function myId(){ let v = sessionStorage.getItem("uzuid"); if(!v){ v = Math.random().toString(36).slice(2,10); sessionStorage.setItem("uzuid", v);} return v; }
-const isHost = () => SOLO || (S && S.host === mySeat);
+const isHost = () => !!S && (S.gmHost ? GM && S.gmHost === myId() : SOLO || (mySeat !== null && S.host === mySeat));
+
+// GM専用画面。席・手札・魂の記憶は表示せず、進行だけを担当する。
+function renderGM(){
+  $("lobby").classList.add("hide");
+  $("game").classList.add("hide");
+  let panel = document.getElementById("gmPanel");
+  if (!panel){ panel = document.createElement("section"); panel.id="gmPanel"; document.body.appendChild(panel); }
+  const count = Object.keys(S.seats || {}).length;
+  panel.style.cssText="max-width:640px;margin:40px auto;padding:24px";
+  panel.innerHTML=`<h1>GM進行端末</h1><p>部屋 ${code} ／ 接続席 ${count}/5</p>
+    <p>${STAGES[S.stage||0].name} ／ 成立 ${S.pairs||0}/25組 ／ ${S.phase}</p>
+    <p id="gmClock"></p><p>この画面を前面に置き、端末のスリープを無効にしてください。</p>
+    ${!isHost() ? '<p>別のGM端末に進行権限が移りました。</p>' :
+      S.phase==='lobby'||S.phase==='wait' ? '<button id="gmNext">開始／次の段階へ</button>' : ''}`;
+  const next=document.getElementById("gmNext");
+  if(next){ next.disabled=count!==5; next.onclick=()=>{if(isHost()&&Object.keys(S.seats||{}).length===5) beginRound();}; }
+}
 
 // ---------- ソロ確認モード（?solo=1）----------
 function renderSolo(){
@@ -651,6 +674,11 @@ function renderSolo(){
 function startTick(){
   if (tick) return;
   tick = setInterval(() => {
+    if (S && S.gameEndAt && S.phase!=="over" && Date.now()>=S.gameEndAt && isHost()){
+      forceFinishAtLimit(); return;
+    }
+    const clock=document.getElementById("gmClock");
+    if(clock) clock.textContent=S.gameEndAt ? `実プレイ残り ${Math.max(0,Math.ceil((S.gameEndAt-Date.now())/1000))}秒` : "開始待ち";
     if (!S || !S.endAt) { $("tm").textContent="--"; $("tm").className="tm"; return; }
     const s = Math.max(0, Math.ceil((S.endAt - Date.now())/1000));
     $("tm").textContent = s; $("tm").className = "tm" + (s<=5?" hot":"");
