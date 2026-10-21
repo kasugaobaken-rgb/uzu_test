@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="ja"><head><meta name="referrer" content="no-referrer"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow,noarchive"><title>第二テスト 統合プレイテスト</title><link rel="stylesheet" href="style.css"></head>
+<body>
+<div class="ambient-space" aria-hidden="true"><span class="aurora aurora-a"></span><span class="aurora aurora-b"></span><span class="aurora aurora-c"></span><span class="depth-grid"></span><span class="pixel-atmosphere"></span></div>
+<header class="app-header"><a class="brand" href="./"><span class="brand-mark">Ⅱ</span><span>SOUL’S TESTAMENT<small>SECOND TEST / PLAY LAB</small></span></a><span id="identity" class="badge">ONLINE TEST</span></header>
+<main id="landing" class="landing">
+ <div class="eyebrow">UZU TOKYO / INTERACTION PROTOTYPE</div><h1>記憶を集め、<br><span>現場を読み解く。</span></h1><p class="lead">記憶カード、事件資料、3D現場をひとつのテスト画面に。<br>最新の第二テストを確認するための無料枠のオンライン試作です。進行担当のブラウザがゲーム処理を担当します。</p>
+ <section class="panel"><h2>進行担当の準備</h2><p>Googleログイン後、非公開の「記憶データ.json」を選んでから部屋を作ります。参加者は受け取った専用リンクから入ります。</p><button id="hostLogin">進行担当としてGoogleでログイン</button><label class="field">運営用データ（公開フォルダへ置かないでください）<input id="catalogFile" type="file" accept="application/json,.json"></label><details id="pasteData"><summary>ファイルを選べない場合：JSONを貼り付け</summary><label class="field">運営用JSON<textarea id="catalogPaste" autocomplete="off" spellcheck="false" aria-label="運営用JSON"></textarea></label><button id="catalogPasteLoad">貼り付けたデータを読み込む</button></details><p>再開時：Googleログイン後、保存した進行リンクを開き直してください。</p></section>
+ <div class="entry-actions"><button class="primary" id="soloStart">ひとりで確認する <span>PC切替つき</span></button><button id="createRoom">5人用の部屋を作る</button></div>
+ <div class="landing-grid"><article><b>01 / 記憶</b><h2>読む、交換する、復元する。</h2><p>他人の秘密が手元に届く。必要な断片を交渉で集める。</p></article><article><b>02 / 事件資料</b><h2>公開資料を横断する。</h2><p>事件資料は最初から参照可能。共有写真の枠も用意。</p></article><article><b>03 / 3D現場</b><h2>自分の仮説を置いてみる。</h2><p>粒子モデルを回し、人物のコマを配置。配置は自分だけのメモ。</p></article></div>
+ <p class="test-note">仮ルール：36記憶・72断片＋読取不可カード1枚。復元した2枚は手札から除去し、記憶を保存。匿名奪取は各PC1回。カード分割と効果は動作確認用で、確定仕様ではありません。</p>
+</main>
+<section id="game" hidden>
+ <div class="room-strip"><span id="roomLabel"></span><span id="phaseLabel" class="pill"></span><div id="soloSwitch"></div><span id="connection" role="status">接続中</span></div>
+ <nav id="tabs" aria-label="テスト画面"><button data-tab="hand">記憶カード <span id="handCount"></span></button><button data-tab="restored">復元した記憶 <span id="restoreCount"></span></button><button data-tab="case">事件資料</button><button data-tab="photos">防犯カメラ</button><button data-tab="scene">3D現場</button><button data-tab="tutorial">導入・操作</button></nav>
+ <div id="pane"></div>
+ <section id="scenePane" hidden><div class="pane-heading"><div><div class="eyebrow">PRIVATE INVESTIGATION BOARD</div><h1>3D現場</h1><p>この配置は自分だけの仮説。証拠の正解位置ではありません。</p></div></div><iframe id="sceneFrame" title="工場の3Dモデルと個人用の人物配置" loading="lazy"></iframe></section>
+</section>
+<section id="host" hidden></section>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="cardDialog"><form method="dialog"><button class="close" aria-label="閉じる">×</button></form><div id="cardDetail"></div></dialog>
+<dialog id="cameraDialog" aria-labelledby="cameraTitle"><form method="dialog"><button class="close" aria-label="防犯カメラ画像を閉じる">×</button></form><div class="eyebrow">SECURITY CAMERA / EXTRACTED STILL</div><h2 id="cameraTitle"></h2><p class="muted">時刻情報なし。画像番号は時系列を示しません。</p><div class="camera-view-actions"><button id="cameraZoom" data-action="cameraZoom" aria-pressed="false">原寸で見る</button><a id="cameraOriginal" target="_blank" rel="noopener">画像だけを開く ↗</a></div><div id="cameraImageFrame"><img id="cameraImage" alt=""></div></dialog>
+<script type="module" src="app.js"></script>
+</body></html>

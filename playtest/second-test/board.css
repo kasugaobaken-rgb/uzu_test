@@ -1,0 +1,26 @@
+.topbar{display:none}main{max-width:none;padding:12px}.workspace{grid-template-columns:minmax(0,1fr) 285px;gap:15px}.viewer{min-height:580px}.board-panel{border:1px solid #769d8b!important;background:#18332f!important;padding:15px!important}.board-heading{display:flex;align-items:center;justify-content:space-between;gap:10px}.board-heading h2{font-size:16px!important}.board-heading span{font-size:10px;color:#b8dece}.board-panel p{font-size:11px;line-height:1.7}.board-panel label{display:grid;gap:5px;margin:9px 0;font-size:11px}.board-panel select,.board-panel input,.board-panel textarea{width:100%;min-width:0;background:#102628;border:1px solid #54796d;border-radius:6px;color:#eef5eb;font:inherit;padding:7px}.board-panel textarea{min-height:75px;resize:vertical}.board-panel .board-row{display:flex;gap:5px;margin:9px 0}.board-panel button{font-size:10px;padding:7px 8px;white-space:normal}.piece-buttons{display:flex;gap:4px;margin:12px 0}.piece-buttons button{flex:1;padding:8px 3px;border:1px solid var(--piece-color);color:var(--piece-color);background:#142c2c}.piece-buttons button[aria-pressed=true]{background:var(--piece-color);color:#1c302e}.board-status{font-size:11px;color:#e4d3ae;min-height:30px}.placing{background:#d5e9b1!important;color:#233b28!important}.private-hint{color:#b9cebd}.gesture-hint{margin-bottom:0}@media(max-width:760px){main{padding:6px}.workspace{display:flex;flex-direction:column}.viewer{min-height:440px}.inspector{display:grid;grid-template-columns:1fr;gap:10px}.board-panel{order:-1}.room-tools{flex-wrap:wrap}.boundary-note{font-size:10px}.viewer canvas{height:430px}.view-tools{flex-wrap:wrap}}
+.viewer{height:620px;max-height:none}
+@media(max-width:800px){.viewer{height:590px;min-height:500px;max-height:590px}.viewer canvas{height:auto}.workspace{display:flex;flex-direction:column}.inspector{display:grid;grid-template-columns:1fr;gap:10px;width:100%}}
+/* Match the unframed pixel interface without changing the model geometry. */
+body{background:transparent;font-family:Dot,monospace;color:#daf6ec;letter-spacing:.025em}
+button,input,select,textarea,.render-tools button,.view-tools button{font-family:Dot,monospace;font-weight:400}
+main{background:transparent}.workspace{gap:22px}
+.viewer{border:0;border-radius:0;background:radial-gradient(ellipse at 50% 45%,#19505a3b,transparent 75%)}
+.viewer-header,.structure-tools,.floor-tools,.room-tools{background:transparent}
+button{border:0;border-radius:0;background:#8ed9da08;color:#a6cbd0}
+button:hover{background:#9ff6d213;border-color:transparent;color:#d0ffeb}
+.structure-tools button,.floor-tools button,.room-tools button,.view-tools button,.render-tools button{border:0;border-radius:0;background:transparent;font-family:Dot,monospace}
+button[aria-pressed=true],.structure-tools button[aria-pressed=true],.floor-tools button[aria-pressed=true],.room-tools button[aria-pressed=true],.view-tools button[aria-pressed=true],.render-tools button[aria-pressed=true]{border:0;border-radius:0;background:linear-gradient(100deg,#8af5d41b,transparent);color:#c3ffe7;box-shadow:inset 2px 0 #94eed6}
+.board-panel{border:0!important;border-radius:0!important;background:linear-gradient(100deg,#89e4d709,transparent 85%)!important;padding:20px 14px!important}
+.board-heading h2{font-weight:400}.board-heading span{color:#9ad1c3}
+.board-panel select,.board-panel input,.board-panel textarea{border:0;border-bottom:1px solid #88cab744;border-radius:0;background:#0b263a33;font-family:Dot,monospace;color:#c5e9e2}
+.board-panel button{border:0;border-radius:0;line-height:1.9;font-family:Dot,monospace}
+.piece-buttons button{border:0;background:none;color:var(--piece-color)}
+.piece-buttons button[aria-pressed=true]{background:transparent;color:var(--piece-color);box-shadow:inset 0 -2px var(--piece-color);text-shadow:0 0 16px var(--piece-color)}
+.placing{background:#a4f4cf1c!important;color:#c4ffe4!important;box-shadow:inset 2px 0 #94eed6}
+.room-list button{border:0;border-radius:0;background:none}
+.room-list button[aria-pressed=true]{background:#b5ffe20c;color:#c5ffea;border:0}
+.selection-panel{border:0}.selection-panel h2,.section-label h2{font-family:Dot,monospace;font-weight:400}
+.boundary-note{font-family:Dot,monospace;color:#779cad}
+.gesture-hint{color:#9bc4c8;font-family:Dot,monospace}
+option{background:#0a1d2b}

@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="ja"><head><meta name="referrer" content="no-referrer"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow,noarchive"><title>3D現場 個人用の配置</title><link rel="stylesheet" href="../scene-model.css"><link rel="stylesheet" href="board.css"></head>
+<body>
+ <header class="topbar"><a href="../first-test/review.html?mode=pixel">← NEXUS確認画面</a><span>SCENE LAB <b>01</b></span><span class="test-tag">制作確認用</span></header>
+ <main>
+  <h1 class="sr-only">工場モデル</h1>
+  <div class="workspace">
+   <section class="viewer" aria-label="建物の立体ビューア">
+    <div class="structure-tools" role="group" aria-label="外観と内装"><button id="interiorMode" aria-pressed="true">内装</button><button id="exteriorMode" aria-pressed="false">外観</button><span id="structureStatus">フロア表示</span></div>
+    <div class="floor-tools" id="floorTools" role="group" aria-label="表示する階"><button id="floor1" aria-pressed="true">1F</button><button id="floor2" aria-pressed="false">2F</button><button id="allFloors" aria-pressed="false">全階</button><span id="floorTitle">1階</span></div>
+    <div class="room-tools" id="warehouseTools" role="group" aria-label="室内表示"><button id="focusAssembly" aria-pressed="false">組立・プログラミング室</button><button id="focusManagement" aria-pressed="false">管理室</button><button id="focusReception" aria-pressed="false">応接室</button><button id="focusStore1" aria-pressed="false" hidden>倉庫1 室内</button><button id="focusStore2" aria-pressed="false" hidden>倉庫2 室内</button><button id="floorOverview" disabled>階全体へ</button></div>
+    <div class="viewer-header"><span><i></i> FACTORY / <span id="renderStatus">POINT CLOUD</span></span><div class="render-tools" role="group" aria-label="モデルの描画方式"><button id="particleMode" aria-pressed="true">粒子</button><button id="solidMode" aria-pressed="false">通常</button><button id="rebuild" aria-label="粒子を再構成する">再構成 ↺</button></div><span id="viewStatus">斜めから表示</span></div>
+    <canvas id="model" tabindex="0" aria-label="手描き間取りに基づく工場3Dモデル。ドラッグで回転、ピンチまたはホイールで拡大縮小。矢印キーでも回転できます。" aria-describedby="controlsHelp">建物モデルを表示するにはCanvasに対応したブラウザが必要です。部屋の一覧は下にあります。</canvas>
+    <div class="view-tools" role="group" aria-label="視点の操作"><button id="orbitView" aria-pressed="true">立体</button><button id="topView" aria-pressed="false">真上</button><button id="wallToggle" aria-pressed="false">壁を高く</button><button id="labelsToggle" aria-pressed="true">部屋名 ON</button><button id="closeView" aria-pressed="false" hidden>設備に寄る</button><button id="reset">全体に戻す ↺</button></div>
+    <p class="gesture-hint" id="controlsHelp">1本指で回転 · 2本指で拡大縮小<br><span>PC：ドラッグで回転 / ホイールでズーム / 矢印キー・＋・−でも操作</span></p>
+   </section>
+   <aside class="inspector"><section id="boardControls" class="board-panel"></section>
+    <section class="zoom-panel"><div class="section-label"><h2>表示倍率</h2><output id="zoomText" for="zoom">100%</output></div><div class="zoom-controls"><button id="zoomOut" aria-label="縮小">−</button><input id="zoom" type="range" min="65" max="280" value="100" aria-label="モデルの表示倍率"><button id="zoomIn" aria-label="拡大">＋</button></div></section>
+    <section class="rooms-panel" id="roomsPanel"><div class="section-label"><h2>部屋を選ぶ</h2><span id="roomCount">5 AREAS</span></div><p>部屋をタップすると、その場所に寄ります。</p><div id="roomList" class="room-list"></div></section>
+    <section class="selection-panel" aria-live="polite"><p class="eyebrow">SELECTED AREA</p><h2 id="selectedTitle">1階全体</h2><p id="selectedDescription">手描きの間取りを基に配置しています。寸法と階高は仮設定です。</p><button id="clearSelection">選択を解除して全体へ</button></section>
+    <p class="boundary-note">手描き図の間取りを維持した建物試作です。外観の屋根・配管・外構は参考画像を基にした仮設定です。人型は機械・義体の仮モデルで、事件当日の人物や証拠を示すものではありません。室内表示では手前の壁を省略しています。</p>
+   </aside>
+  </div>
+ </main>
+ <script src="../warehouse-props.js"></script><script src="../factory-room-props.js"></script><script src="../factory-layout.js"></script><script src="../factory-exterior.js"></script><script src="board.js"></script><script src="scene-view.js"></script>
+</body></html>
+
