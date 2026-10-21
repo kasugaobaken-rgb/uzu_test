@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="ja"><head><meta name="referrer" content="no-referrer"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow,noarchive"><title>NEXUS — 2067 SEARCH</title><link rel="stylesheet" href="nexus.css"></head>
+<body>
+ <div class="wallpaper" aria-hidden="true"></div><div class="shade" aria-hidden="true"></div>
+ <header class="engine-header"><button class="brand" id="home" aria-label="NEXUS ホーム"><span class="brand-mark">//</span><span>NEXUS</span></button><div class="header-actions"><span id="staffBadge" hidden>制作確認・投票前のみ</span><button class="round-button" id="identity" aria-label="個体・設問を確認"><span id="pcBadge">◎</span></button><button class="round-button" id="settings" aria-label="表示する記事を絞り込む">☷</button></div></header>
+ <div class="test-strip" id="testStrip" hidden><span>UZU / TEST 01</span><span id="testIdentity"></span><span id="testClock">20:00</span><button id="showQuestions">設問を開く <span id="cleared">0/4</span></button></div>
+ <main id="engine">
+  <section class="search-hero" id="hero"><div class="hero-copy"><p>THE WORLD, ONE SEARCH AWAY.</p><h1>知りたい。その先へ。</h1></div>
+   <form id="searchForm" class="search-box" role="search"><span class="search-icon" aria-hidden="true"></span><input id="query" type="search" aria-label="検索する言葉" placeholder="この世界について、検索する" autocomplete="off"><button type="button" id="imageSearch" class="search-tool" aria-label="画像で表示">▧</button><span class="search-divider"></span><button type="submit" class="search-submit" aria-label="検索する">→</button></form>
+   <div class="suggestions" id="suggestions"></div>
+  </section>
+  <section class="home-content" id="homeContent"><div class="section-heading"><span>EXPLORE / 2067</span><button id="browseAll">資料サイトを一覧で見る <span>↗</span></button></div><div class="explore-grid" id="explore"></div><p class="home-note" id="homeNote"></p></section>
+  <section id="resultsPanel" class="results-panel" hidden><div class="result-topline"><div><p class="eyebrow">NEXUS SEARCH</p><h1 id="resultHeading"></h1><p id="resultCount"></p></div><div class="view-switch"><button id="listView" aria-pressed="true">サイト</button><button id="gridView" aria-pressed="false">画像</button></div></div><div id="results"></div></section>
+ </main>
+ <aside class="filter-panel" id="filters" hidden><div class="panel-top"><h2>検索範囲</h2><button id="closeFilters" aria-label="閉じる">×</button></div><p id="scopeNote">現在アクセスできるサイトを検索します。</p><div id="reviewFilters" hidden><label>公開段階<select id="phaseFilter"><option value="all">第一・第二テスト</option><option value="1">第一テスト</option><option value="2">第二テストのみ</option></select></label><label>閲覧対象<select id="pcFilter"><option value="all">全PCの情報</option><option value="common">全員共通</option><option value="1">PC1</option><option value="2">PC2</option><option value="3">PC3</option><option value="4">PC4</option><option value="5">PC5</option></select></label></div><label>掲載元<select id="sourceFilter"><option value="all">すべてのサイト</option></select></label><button class="solid-button" id="resetFilters">絞り込みを解除</button></aside>
+ <dialog id="questionsDialog" class="glass-dialog"><div class="panel-top"><div><p class="eyebrow">UZU / ADAPTATION TEST</p><h2>理解度確認</h2></div><button id="closeQuestions" aria-label="設問を閉じる">×</button></div><div id="questions"></div></dialog>
+ <dialog id="introDialog" class="glass-dialog"><p class="eyebrow">UZU / TEST 01</p><h2>2067年の世界を調べる</h2><p>あなたの端末に接続する個体を選んでください。設問の答えを検索で探し、必要な情報はほかの個体とも共有してください。</p><div class="seat-grid" id="seats"></div><p class="intro-note">検索・回答は20分。設問は検索中も確認できます。</p><button class="solid-button" id="startTest">選んだ個体で開始する →</button></dialog>
+ <div id="toast" class="toast" role="status" hidden></div>
+ <script src="nexus-data.js"></script><script src="portals-data.js"></script><script src="nexus-core.js"></script><script src="nexus.js"></script>
+</body></html>
