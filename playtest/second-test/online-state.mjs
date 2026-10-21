@@ -18,7 +18,7 @@ export function populateViews(data){
  for(const [token,box] of Object.entries(data.mailboxes))box.view={...game.snapshot(room,game.identify(room,token)),_readyUid:box.uid||null};
  data.private.state=room;return data;
 }
-export function hasWork(data){return Object.values(data?.mailboxes||{}).some(b=>b.uid&&!data.members?.[b.uid]||Object.keys(b.requests||{}).length);}
+export function hasWork(data){return Object.values(data?.mailboxes||{}).some(b=>b.uid&&(!data.members?.[b.uid]||b.view?._readyUid!==b.uid)||Object.keys(b.requests||{}).length);}
 // One atomic DB transaction handles state, requests, receipts, and role-specific views.
 export function settleRoom(raw,now=Date.now()){
  const data=structuredClone(raw),game=makeEngine(data.private.catalog);

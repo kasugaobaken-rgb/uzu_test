@@ -5,12 +5,13 @@ import {getDatabase,ref,get,set,onValue,runTransaction,serverTimestamp} from 'ht
 import {makeEngine} from './online-engine.mjs';
 import {populateViews,settleRoom,hasWork} from './online-state.mjs';
 const firebase=initializeApp(window.FIREBASE_CONFIG),auth=getAuth(firebase),db=getDatabase(firebase);
-const boot=new Promise(resolve=>{const off=onAuthStateChanged(auth,()=>{off();resolve();});});
+const boot=new Promise(resolve=>{onAuthStateChanged(auth,()=>{resolve();queueMicrotask(()=>emit());});});
 let catalog=null,current=null,listeners=[],lastPresence=null,connected=false,assets={};
 const sessions=new Map(),processors=new Map(),connecting=new Map();
 const emit=()=>listeners.forEach(fn=>fn());
 onValue(ref(db,'.info/connected'),s=>{connected=s.val()===true;emit();});
 export const onChange=fn=>listeners.push(fn);
+export const setupState=()=>({loggedIn:Boolean(auth.currentUser&&!auth.currentUser.isAnonymous),email:auth.currentUser?.isAnonymous?'':auth.currentUser?.email||'',catalogReady:Boolean(catalog)});
 export const photoUrl=p=>assets[p.id]||'';
 export function statusText(){return !connected?'再接続中':lastPresence&&Date.now()-lastPresence.at<45000?'同期中':'進行画面の再開待ち';}
 export async function hostLogin(){await boot;await signInWithPopup(auth,new GoogleAuthProvider());emit();}
@@ -18,7 +19,7 @@ export async function loadCatalog(file){
  if(!file||file.size>250000)throw Error('運営専用の記憶データ.jsonを選んでください。');
  const c=JSON.parse(await file.text());
  if(c.units?.length!==36||c.cards?.length!==73||c.evidence?.length!==9||!c.version||!c.backgrounds)throw Error('運営データの形式を確認してください。');
- makeEngine(c);catalog=c;
+ makeEngine(c);catalog=c;emit();
 }
 function safeId(value,pattern){if(!pattern.test(value||''))throw Error('招待リンクを確認してください。');return value;}
 function roomPath(id){return `onlineV3/${safeId(id,/^[A-F0-9]{8}$/)}`;}
@@ -49,11 +50,12 @@ async function connectInternal(id,key){
  const user=await ensureAuth(),base=roomPath(id),boxPath=base+'/mailboxes/'+key;
  const role=(await get(ref(db,boxPath+'/role'))).val();
  if(!role)throw Error('招待リンクが無効、または部屋がありません。');
+ const owner=(await get(ref(db,base+'/ownerUid'))).val();
+ // Solo preview still needs the facilitator processor after a full navigation.
+ if(owner===user.uid&&!user.isAnonymous)startProcessor(id);
  if(role==='host'){
   if(user.isAnonymous)throw Error('進行担当のGoogleログインを行ってから、このリンクを開き直してください。');
-  const owner=(await get(ref(db,base+'/ownerUid'))).val();
   if(owner!==user.uid)throw Error('部屋を作ったGoogleアカウントでログインしてください。');
-  startProcessor(id);
  }else{
   const uidRef=ref(db,boxPath+'/uid');
   let claimed=(await get(uidRef)).val();
