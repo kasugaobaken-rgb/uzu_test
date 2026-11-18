@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex,nofollow,noarchive"><title>第二テスト 交換式</title><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="play-ui.css"></head>
+<body>
+<div class="ambient-space" aria-hidden="true"><span class="aurora aurora-a"></span><span class="aurora aurora-b"></span><span class="aurora aurora-c"></span><span class="depth-grid"></span><span class="pixel-atmosphere"></span></div>
+<header class="app-header"><a class="brand" href="./"><span class="brand-mark">Ⅱ</span><span>SOUL’S TESTAMENT<small>SECOND TEST / EXCHANGE v2</small></span></a><span id="identity" class="badge">LOCAL TEST</span></header>
+<main id="landing" class="landing">
+ <div class="eyebrow">UZU TOKYO / INTERACTION PROTOTYPE</div><h1>自分の記憶を、<br><span>取り戻す。</span></h1><p class="lead">記憶の前半は、もう手元にある。後半は、誰かの手札の中。<br>交換・交渉・効果カードで集める、第二テストの交換式の試作です。</p>
+ <p id="fileStartup" class="test-note" role="status" hidden>このファイルは直接起動できません。下のボタンで確認用サイトへ移動できます。つながらない場合は、同じフォルダの「テストプレイ用サーバーを起動.command」を先に開いてください。</p>
+ <div class="entry-actions"><button class="primary" id="soloStart">ひとりで確認する <span>PC切替つき</span></button><button id="createRoom">5人用の部屋を作る</button></div>
+ <div class="landing-grid"><article><b>01 / 記憶</b><h2>欲しいと言えば、正体がばれる。</h2><p>自分のAの番号から、探すBが分かる。持っている人は先に読んでいる。</p></article><article><b>02 / 事件資料</b><h2>公開資料を横断する。</h2><p>事件資料は最初から参照可能。共有写真の枠も用意。</p></article><article><b>03 / 3D現場</b><h2>自分の仮説を置いてみる。</h2><p>粒子モデルを回し、人物のコマを配置。配置は自分だけのメモ。</p></article></div>
+ <p class="test-note">試作のルール（2026-10-26）：記憶32組。各自のAは最初から手元。配るのはB32枚＋効果カード8枚＋読取不能データ1枚の41枚。プレイは40分（交換と議論は自由）。時間が来ると残りは持ち主へ返却され、最後に誰が持っていたかが表示されて、投票に移ります。</p>
+</main>
+<section id="game" hidden>
+<div class="play-bar" id="playBar"><span id="seatLabel" class="seat-chip"></span><span id="phaseLabel" class="phase-label"></span><span id="timer" class="timer" data-timer hidden></span><button class="help-button" data-tab="tutorial" aria-label="遊び方を見る">？<span class="help-text"> 遊び方</span></button></div>
+<p id="connection" class="connection-warning" role="status" hidden></p>
+<details id="devBar" class="dev-bar" hidden><summary>確認用の操作（ひとり確認の部屋だけに表示）</summary><div class="dev-row"><span id="roomLabel"></span><div id="soloSwitch"></div></div></details>
+<nav id="tabs" aria-label="テスト画面">
+<button data-tab="hand" aria-label="記憶カード"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h12v14H4zM8 3h12v14M7 11h6M7 15h4"/></svg><span class="nav-label">手札</span><span class="desktop-label">記憶カード</span><span id="handCount" class="nav-count"></span></button>
+<button data-tab="restored" aria-label="復元した記憶"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 9 10-9 10L3 12zM8 12l3 3 5-6"/></svg><span class="nav-label">復元</span><span class="desktop-label">復元した記憶</span><span id="restoreCount" class="nav-count"></span></button>
+<button data-tab="timeline" aria-label="全員の時系列"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3v18M6 6h12M6 12h9M6 18h12"/></svg><span class="nav-label">時系列</span><span class="desktop-label">時系列</span><span id="timelineCount" class="nav-count"></span></button>
+<button data-tab="case" aria-label="事件資料"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 3h10l6 6v12H4zM14 3v6h6M8 13h8M8 17h6"/></svg><span class="nav-label">事件資料</span><span class="desktop-label">事件資料</span></button>
+<button data-tab="photos" aria-label="防犯カメラ"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7h12v12H3zM15 11l6-4v12l-6-4M6 4h7"/></svg><span class="nav-label">カメラ</span><span class="desktop-label">防犯カメラ</span></button>
+<button data-tab="scene" aria-label="3D現場"><svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 9 5v10l-9 5-9-5V7zM3 7l9 5 9-5M12 12v10"/></svg><span class="nav-label">3D現場</span><span class="desktop-label">3D現場</span></button>
+</nav>
+ <div id="pane"></div>
+ <aside id="offerSheet" class="offer-sheet" aria-label="届いた交換の申し込み" aria-live="polite" hidden></aside>
+ <section id="scenePane" hidden><div class="pane-heading"><div><div class="eyebrow">PRIVATE INVESTIGATION BOARD</div><h1>3D現場</h1><p>この配置は自分だけの仮説。証拠の正解位置ではありません。</p></div></div><iframe id="sceneFrame" title="工場の3Dモデルと個人用の人物配置" loading="lazy"></iframe></section>
+</section>
+<section id="host" hidden></section>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+<dialog id="cardDialog"><form method="dialog"><button class="close" aria-label="閉じる">×</button></form><div id="cardDetail"></div></dialog>
+<dialog id="cameraDialog" aria-labelledby="cameraTitle"><form method="dialog"><button class="close" aria-label="防犯カメラ画像を閉じる">×</button></form><div class="eyebrow">SECURITY CAMERA / EXTRACTED STILL</div><h2 id="cameraTitle"></h2><p class="muted">時刻情報なし。画像番号は時系列を示しません。</p><div class="camera-view-actions"><button id="cameraZoom" data-action="cameraZoom" aria-pressed="false">原寸で見る</button><a id="cameraOriginal" target="_blank" rel="noopener">画像だけを開く ↗</a></div><div id="cameraImageFrame"><img id="cameraImage" alt=""></div></dialog>
+<script>
+// file://ではモジュールも部屋作成APIも動かないため、起動先を案内する。
+if(location.protocol==='file:'){
+ document.getElementById('fileStartup').hidden=false;
+ const localSite='http://localhost:3031/second-test-v2/';
+ document.getElementById('soloStart').onclick=()=>location.assign(localSite+'?start=solo');
+ document.getElementById('createRoom').onclick=()=>location.assign(localSite);
+}else{
+ const app=document.createElement('script');app.type='module';app.src='app.js';document.body.append(app);
+}
+</script>
+</body></html>

@@ -1,0 +1,191 @@
+/* 2026-11-15 プレイ画面の見直し。style.css（既存のオーロラ表現）の上に重ねる。ルール・本文は変更しない。 */
+:root{--amber:#f4d7a0;--alarm:#ff8a7a;--panel:#0b1c2bcc;--line:#a8ffdf26;--deep:#071322}
+
+/* ---------- 上の帯：PC・段階・残り時間だけ ---------- */
+.play-bar{position:sticky;top:0;z-index:18;display:flex;align-items:center;gap:12px;min-height:58px;margin:0 -4vw;padding:6px 4vw;background:#071322e0;backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 1px #8ddbd21a}
+.seat-chip{flex:none;font-size:15px;line-height:1;padding:7px 10px 6px;background:var(--mint);color:#0d2e2e;letter-spacing:.08em}
+.phase-label{flex:1;min-width:0;font-size:12px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.play-bar .timer{grid-area:auto;display:flex;flex-direction:column;align-items:flex-end;line-height:1.05;border:0;padding:0;border-radius:0;color:var(--mint);font-weight:400;font-size:inherit}
+.play-bar .timer small{font-size:9px;letter-spacing:.12em;color:var(--dim)}
+.play-bar .timer b{font-size:26px;font-weight:400;font-variant-numeric:tabular-nums;letter-spacing:.04em;text-shadow:0 0 18px #a8ffdf55}
+.play-bar .timer.urgent b,.play-bar .timer.urgent small{color:var(--alarm)}
+.play-bar .timer.urgent b{text-shadow:0 0 18px #ff8a7a77}
+.play-bar .timer.final b{animation:timer-blink 1s steps(2,start) infinite}
+@keyframes timer-blink{50%{opacity:.35}}
+.play-bar .help-button{flex:none;min-height:44px;min-width:44px;padding:6px 12px;border:1px solid var(--line);background:transparent;color:var(--dim);font-size:13px}
+[data-timer].urgent{color:var(--alarm)}
+.connection-warning{margin:8px 0 0;padding:8px 12px;background:#f4d7a01a;color:var(--amber);font-size:12px;box-shadow:inset 3px 0 var(--amber)}
+.dev-bar{margin:10px 0 0;padding:6px 10px;border:1px dashed #a7c5cd44;font-size:11px;color:var(--dim)}
+.dev-bar summary{cursor:pointer;min-height:32px;display:flex;align-items:center}
+.dev-row{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;padding:4px 0 6px}
+.dev-row #soloSwitch select{font-size:14px;min-height:36px;padding:4px 8px}
+.dev-row #soloSwitch a{margin-left:12px}
+
+/* ---------- アルバム：自分のAの枠。Bがはまると1枚の絵になる ---------- */
+.album{margin:6px 0 30px}
+.album-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:12px}
+.album-head h2{margin:2px 0 0;font-size:20px}
+.album-count{display:grid;grid-template-columns:auto auto;align-items:baseline;column-gap:6px;text-align:right}
+.album-count b{font-size:38px;line-height:1;font-weight:400;color:var(--mint);font-variant-numeric:tabular-nums;text-shadow:0 0 22px #a8ffdf44}
+.album-count span{font-size:15px;color:var(--dim)}
+.album-count small{grid-column:1/-1;font-size:10px;letter-spacing:.14em;color:var(--dim)}
+.album-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px}
+.album-slot{display:flex;flex-direction:column;gap:6px;padding:0;margin:0;border:0;border-radius:0;background:none;color:inherit;text-align:left;cursor:pointer}
+.album-slot:hover:not(:disabled){background:none}
+.album-slot:hover .slot-frame{box-shadow:0 0 0 1px #a8ffdf88}
+.slot-frame{position:relative;display:flex;aspect-ratio:2/1;overflow:hidden;background:#0a1826;box-shadow:0 0 0 1px var(--line)}
+.slot-art{position:relative;display:block;height:100%;overflow:hidden}
+.slot-art.half-a,.slot-art.half-b{width:50%}
+.slot-art.whole{width:100%}
+.slot-art.half-a{background:linear-gradient(135deg,#183c4c,#0d2231)}
+.art-fill{position:absolute;inset:0}
+.art-fill img{display:block;width:100%;height:100%;object-fit:cover}
+.slot-label-a{position:absolute;left:6px;top:4px;font-size:10px;line-height:1;padding:3px 5px;background:#071322cc;color:var(--mint)}
+.slot-art.half-b{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:repeating-linear-gradient(135deg,#f4d7a00a 0 6px,transparent 6px 12px);box-shadow:inset 0 0 0 1px #f4d7a055;outline:1px dashed #f4d7a066;outline-offset:-5px}
+.slot-want{font-size:15px;color:var(--amber);letter-spacing:.04em}
+.slot-q{font-size:20px;line-height:1;color:#f4d7a088}
+.album-slot.done .slot-frame{box-shadow:0 0 0 1px #a8ffdf99,0 0 24px #a8ffdf22}
+.slot-cap{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px}
+.slot-cap b{font-size:15px;font-weight:400;color:var(--ink)}
+.slot-cap span{color:var(--amber)}
+.album-slot.done .slot-cap span{color:var(--mint)}
+.album-slot.fresh .slot-frame{animation:slot-glow 1.6s ease-out}
+.album-slot.fresh .slot-art.whole{animation:slot-join 1.2s cubic-bezier(.2,.8,.2,1)}
+@keyframes slot-join{0%{clip-path:inset(0 50% 0 0);filter:brightness(2) saturate(.2)}55%{clip-path:inset(0 0 0 0);filter:brightness(1.6)}100%{clip-path:inset(0);filter:none}}
+@keyframes slot-glow{0%{box-shadow:0 0 0 2px var(--mint),0 0 60px #a8ffdfaa}100%{box-shadow:0 0 0 1px #a8ffdf99,0 0 24px #a8ffdf22}}
+.album-note{font-size:11px;color:var(--dim);margin:12px 0 0}
+
+/* ---------- 送った申し込み ---------- */
+.sent-offers{margin:0 0 22px}
+.sent-offers h2{font-size:14px;color:var(--dim);margin:0 0 6px}
+.sent-offer{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 12px;background:#f4d7a00d;box-shadow:inset 3px 0 #f4d7a088;font-size:13px}
+.sent-offer b{font-weight:400;color:var(--amber)}
+.sent-offer .small-button{flex:none;min-height:40px}
+
+/* ---------- 手札：小さなカードの一覧 ---------- */
+.hand-list{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:8px}
+.hand-tile{position:relative;display:grid;grid-template-columns:56px minmax(0,1fr);gap:12px;align-items:center;width:100%;min-height:72px;padding:8px 12px 8px 8px;margin:0;text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:3px;color:inherit}
+.hand-tile:hover:not(:disabled){background:#123047;border-color:#a8ffdf66}
+.tile-thumb{position:relative;display:grid;place-items:center;width:56px;height:56px;overflow:hidden;background:#10283a}
+.tile-glyph{font-size:22px;color:var(--lilac)}
+.kind-joker .tile-glyph{color:var(--dim)}
+.tile-main{display:flex;flex-direction:column;min-width:0;line-height:1.35}
+.tile-kind{font-size:10px;letter-spacing:.08em;color:var(--dim)}
+.tile-no{font-size:20px;font-weight:400;color:var(--ink);letter-spacing:.03em}
+.kind-effect .tile-no,.kind-joker .tile-no{font-size:16px}
+.kind-effect{border-color:#b4a4ff40}
+.kind-joker{border-style:dashed}
+.tile-text{font-size:11px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile-flag{position:absolute;top:6px;right:8px;font-size:10px;line-height:1;padding:3px 5px}
+.tile-flag.sending{background:#f4d7a022;color:var(--amber)}
+.tile-flag.guard{background:#8bdbff22;color:var(--ice)}
+.tile-flag.guard+.tile-flag.sending{top:26px}
+
+/* ---------- 交換：返してほしいカードをタップで選ぶ ---------- */
+.request-pick{border:0;padding:0;margin:0;min-width:0}
+.request-pick legend{font-size:13px;color:var(--dim);margin-bottom:6px;padding:0}
+.pick-row{display:flex;flex-wrap:wrap;gap:8px}
+.pick-chip{position:relative;display:inline-flex}
+.pick-chip input{position:absolute;opacity:0;width:1px;height:1px}
+.pick-chip span{display:inline-flex;align-items:center;min-height:42px;padding:6px 12px;border:1px solid #a8ffdf40;font-size:14px;cursor:pointer;color:var(--ink)}
+.pick-chip.want span{color:var(--amber);border-color:#f4d7a066}
+.pick-chip input:checked+span{background:var(--mint);border-color:var(--mint);color:#0d2e2e}
+.pick-chip input:focus-visible+span{outline:3px solid #f8c38c;outline-offset:2px}
+.request-pick input[name="requestOther"]{margin-top:10px;width:100%;font-size:16px;min-height:44px}
+.slot-hint{font-size:13px;color:var(--amber)}
+
+/* ---------- 届いた申し込み：画面の下からせり出す ---------- */
+.offer-sheet{position:fixed;z-index:30;right:24px;bottom:24px;width:min(380px,calc(100vw - 32px));max-height:60vh;overflow:auto;padding:14px 16px 16px;background:#0d2333;border:1px solid #a8ffdf66;box-shadow:0 18px 60px #000c,0 0 40px #a8ffdf1f;animation:sheet-up .35s cubic-bezier(.2,.8,.2,1)}
+@keyframes sheet-up{from{transform:translateY(24px)}}
+.sheet-head{display:flex;justify-content:space-between;align-items:center}
+.sheet-head b{font-weight:400;font-size:15px;color:var(--mint)}
+.sheet-head span{font-size:11px;padding:2px 8px;background:#f4d7a022;color:var(--amber)}
+.sheet-offer{margin-top:10px;padding-top:10px;border-top:1px solid #ffffff17}
+.sheet-line{margin:0 0 2px;font-size:15px}
+.sheet-from{font-weight:400;color:var(--mint)}
+.sheet-return{display:block;margin:2px 0;font-size:13px;color:var(--dim)}
+.sheet-return b{font-weight:400;font-size:16px;color:var(--ink)}
+.sheet-return small{margin-left:4px}
+.sheet-return select{display:block;width:100%;margin-top:4px;min-height:44px;font-size:16px}
+.sheet-warn{margin:4px 0;font-size:12px;color:var(--amber)}
+.sheet-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.sheet-actions button{min-height:48px}
+
+/* ---------- 導入：ハンドアウト1枚＋3ステップ ---------- */
+.intro{display:grid;gap:18px;max-width:820px;margin:14px auto 0}
+.handout{position:relative;padding:20px 22px;background:linear-gradient(160deg,#10293acc,#081726e6);border:1px solid #a8ffdf44;box-shadow:0 20px 60px #0006}
+.handout-seat{font-size:48px;line-height:1.1;color:var(--mint);letter-spacing:.06em;text-shadow:0 0 30px #a8ffdf55;margin:4px 0 6px}
+.handout-arrival{color:var(--ice);margin:0 0 6px}
+.handout-note{margin:12px 0 0;padding-top:10px;border-top:1px dashed #a7c5cd44;font-size:12px;color:var(--dim)}
+.intro-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;counter-reset:step}
+.intro-steps li{counter-increment:step;display:grid;align-content:start;gap:4px;padding:12px 14px;background:var(--panel);border:1px solid var(--line)}
+.intro-steps li b{font-weight:400;font-size:15px;color:var(--ink)}
+.intro-steps li b::before{content:counter(step);display:inline-block;width:20px;margin-right:6px;color:var(--mint)}
+.intro-steps li>span{font-size:12px;line-height:1.7;color:var(--dim)}
+.step-visual{display:grid;place-items:center;height:70px}
+.mini-slot{display:flex;width:120px;aspect-ratio:2/1;box-shadow:0 0 0 1px var(--line)}
+.mini-a,.mini-b{width:50%;display:grid;place-items:center;font-size:11px}
+.mini-a{background:#1d4656;color:var(--mint)}
+.mini-b{color:var(--amber);outline:1px dashed #f4d7a088;outline-offset:-4px}
+.mini-slot.done{box-shadow:0 0 0 1px var(--mint),0 0 20px #a8ffdf44}
+.mini-slot.done .mini-b{background:#1d4656;color:var(--mint);outline:0}
+.mini-bubble{padding:5px 9px;font-size:11px;white-space:nowrap;color:var(--ice);background:#8bdbff14;border:1px solid #8bdbff55;border-radius:14px 14px 14px 2px}
+.intro-check h2{font-size:16px}
+.intro-done{font-size:13px;color:var(--mint)}
+.intro-go{margin:0}
+.intro-go button{width:100%;min-height:52px;font-size:16px}
+.intro-rules summary{cursor:pointer;min-height:40px}
+
+@media(min-width:761px){
+ #tabs{top:58px}
+}
+@media(max-width:760px){
+ body.in-game .app-header{display:none}
+ .play-bar{margin:0 -16px;padding:calc(6px + env(safe-area-inset-top)) 16px 6px}
+ .play-bar .help-text{display:none}
+ .play-bar .timer b{font-size:24px}
+ .album-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px}
+ .slot-want{font-size:13px}
+ .hand-list{grid-template-columns:1fr}
+ .offer-sheet{left:12px;right:12px;width:auto;bottom:calc(84px + env(safe-area-inset-bottom))}
+ body.in-game .toast{top:calc(66px + env(safe-area-inset-top));bottom:auto}
+ .intro-steps{grid-template-columns:1fr}
+ .intro-steps li{grid-template-columns:128px minmax(0,1fr);grid-template-rows:auto 1fr;column-gap:12px;row-gap:2px}
+ .step-visual{grid-row:1/3;height:auto;min-height:64px}
+ .handout-seat{font-size:40px}
+}
+@media(prefers-reduced-motion:reduce){
+ .play-bar .timer.final b,.album-slot.fresh .slot-frame,.album-slot.fresh .slot-art.whole,.offer-sheet{animation:none}
+}
+
+/* ---------- 2026-11-18 自分のハンドアウト（手札の画面の上） ---------- */
+.my-handout{margin:0 0 14px;padding:12px 16px;border:1px solid var(--line);background:var(--panel)}
+.my-handout summary{cursor:pointer;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;min-height:32px;font-size:15px;color:var(--mint)}
+.my-handout summary .eyebrow{margin:0;font-size:10px}
+.my-handout summary small{font-size:12px;color:var(--amber)}
+.my-handout p{margin:8px 0 0;font-size:14px;line-height:1.8}
+.my-handout .handout-note{font-size:12px;color:var(--dim)}
+
+/* ---------- 2026-11-18 全員の時系列 ---------- */
+.tl-form{margin:0 0 18px;padding:14px 16px;border:1px solid var(--line);background:var(--panel)}
+.tl-inputs{display:grid;grid-template-columns:8.5em 1fr;gap:10px}
+.tl-inputs .field{margin:0}
+.tl-inputs input{width:100%;min-height:44px}
+.tl-form-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-top:10px}
+.tl-form-foot small{font-size:11px;color:var(--dim)}
+.tl-list{list-style:none;margin:0 0 18px;padding:0 0 0 14px;border-left:1px solid #a8ffdf55;display:grid;gap:10px}
+.tl-item{position:relative;display:grid;grid-template-columns:4.2em 1fr auto;gap:10px;align-items:start;padding:10px 12px;background:var(--panel);border:1px solid var(--line)}
+.tl-item::before{content:'';position:absolute;left:-19px;top:18px;width:9px;height:9px;background:var(--mint);box-shadow:0 0 10px #a8ffdf88}
+.tl-time{font-size:17px;color:var(--amber);font-variant-numeric:tabular-nums;letter-spacing:.04em;line-height:1.4}
+.tl-body p{margin:0;font-size:14px;line-height:1.7;overflow-wrap:anywhere}
+.tl-body small{font-size:11px;color:var(--dim)}
+.tl-tools{display:flex;gap:6px}
+.tl-tools .small-button{min-height:36px;padding:4px 10px;font-size:12px}
+.tl-sub{font-size:14px;color:var(--dim);margin:8px 0 10px}
+#host .tl-list{margin-top:8px}
+@media(max-width:760px){
+ #tabs{grid-template-columns:repeat(6,minmax(0,1fr))}
+ .tl-inputs{grid-template-columns:1fr}
+ .tl-item{grid-template-columns:3.6em 1fr}
+ .tl-tools{grid-column:1/-1;justify-content:flex-end}
+}
