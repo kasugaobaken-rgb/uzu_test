@@ -7,14 +7,15 @@ const plain = v => JSON.parse(JSON.stringify(v));
 export function normalizeRoom(raw) {
  const r = structuredClone(raw);
  for (const k of ['offers', 'announcements', 'returnLog', 'photos', 'timeline']) r[k] = list(r[k]);
- r.started ??= null; r.deadline ??= null;
+ r.started ??= null; r.deadline ??= null; r.revealStep ??= 0;
  for (const ph of r.photos) { ph.image ??= null; ph.caption ??= ''; }
  r.players = list(r.players).sort((a, b) => a.seat - b.seat);
- for (const p of r.players) { for (const k of ['hand', 'protected', 'restored', 'shared', 'notices']) p[k] = list(p[k]); p.vote ??= null; }
+ for (const p of r.players) { for (const k of ['hand', 'protected', 'restored', 'self', 'shared', 'notices']) p[k] = list(p[k]); p.vote ??= null; }
  return r;
 }
 export function normalizeCatalog(c) {
- return {...c, pairs: list(c.pairs), evidence: list(c.evidence), art: c.art || {}};
+ const reveal = c.reveal ? {...c.reveal, steps: list(c.reveal.steps).map(s => ({...s, lines: list(s.lines), points: s.points ? list(s.points).map(p => ({...p, refs: list(p.refs)})) : undefined}))} : c.reveal;
+ return {...c, pairs: list(c.pairs), evidence: list(c.evidence), art: c.art || {}, fragments: Array.isArray(c.fragments) ? Object.fromEntries(c.fragments.map((f, i) => [String(i), f]).filter(([, f]) => f)) : c.fragments || {}, reveal};
 }
 
 // 記憶画像の鍵は、見てよい画像の分だけ渡す（ローカル版 art.mjs と同じ判定）。
