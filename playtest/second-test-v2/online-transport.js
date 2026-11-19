@@ -78,7 +78,7 @@ function normalizeView(v){
  for(const k of ['players','photos','evidence','announcements','returnLog','timeline','offers'])v[k]=arr(v[k]);
  v.started??=null;v.deadline??=null;v.results=v.results?arr(v.results):null;
  if(v.host){v.invites=arr(v.invites);v.progress=arr(v.progress);v.photoCandidates=arr(v.photoCandidates);}
- else{for(const k of ['hand','memories','restored','shared','notices','flash'])v.me[k]=arr(v.me[k]);v.me.vote??=null;v.art||={};for(const c of v.me.hand){c.effect??=null;c.title??='';}}
+ else{for(const k of ['hand','memories','restored','shared','viewed','viewable','notices','flash'])v.me[k]=arr(v.me[k]);v.me.vote??=null;v.art||={};for(const c of v.me.hand){c.effect??=null;c.title??='';}}
  // 結果発表（空の配列・nullはFirebaseに残らないので戻す）
  v.reveal??=null;
  if(v.reveal){const R=v.reveal;R.votes=arr(R.votes);R.steps=arr(R.steps).map(s=>({...s,lines:arr(s.lines),points:s.points?arr(s.points).map(p=>({...p,refs:arr(p.refs),key:Boolean(p.key)})):undefined}));R.evaluation??=null;if(R.evaluation){const E=R.evaluation;E.identifiers=arr(E.identifiers);E.fastest=arr(E.fastest);E.gather=arr(E.gather).map(g=>({...g,vote:g.vote??null}));}}

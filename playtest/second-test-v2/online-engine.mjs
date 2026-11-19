@@ -16,13 +16,11 @@ const fail = (s, status) => { throw new GameError(s, status); };
 const token = () => randomBytes(24).toString('base64url');
 function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 
+// 2026-11-19 テストプレイ後の変更：交換（申し込み）と6種の効果カードをやめ、「渡す」だけにした。
+// 効果カードは「記憶の閲覧」1種類を1人2枚。交換の時間（40分）が終わったあとに、番号を選んで他の人の記憶を読める。
+const VIEW_PER_PLAYER = 2;
 const EFFECTS = {
- steal:   {name: '抜き取り', count: 2, text: '1人を選び、その手札からランダムに1枚を奪う。誰が抜いたかは相手に出ない。'},
- name:    {name: '指名',     count: 1, text: '番号を1つ言う。そのBを持っている人は、必ず使った人に渡す。指名された番号は全員に知らされる。'},
- trace:   {name: '追跡',     count: 2, text: '番号を1つ選ぶと、そのBを今だれが持っているかが、使った人にだけ分かる。'},
- peek:    {name: 'のぞき見', count: 1, text: '1人を選び、その手札の番号を全部見る。本文は見えない。'},
- protect: {name: '保護',     count: 1, text: '自分の手札の1枚を、抜き取り・指名・攪乱から最後まで守る。'},
- shuffle: {name: '攪乱',     count: 1, text: '全員が、手札からランダムに1枚を左隣（PC番号が1つ上、PC5はPC1）へ渡す。使った人は分からない。'},
+ view: {name: '記憶の閲覧', count: 5 * VIEW_PER_PLAYER, text: '交換の時間が終わったあとに使える。番号を1つ選ぶと、その記憶の全文を読める。読めるのは使った人だけ。'},
 };
 
 // units：記憶32組。A・Bをつなげた文章が復元後の本文（Word 5〜9章の本文と同じ）。
@@ -35,31 +33,44 @@ for (const u of units) {
 let e = 0;
 for (const [type, def] of Object.entries(EFFECTS)) for (let i = 0; i < def.count; i++) { const id = 'E' + (++e); cards.set(id, {id, kind: 'effect', effect: type, title: def.name, text: def.text}); }
 cards.set('J', {id: 'J', kind: 'joker', title: '未読取の記録', text: 'この記録は、現在の状態では読み取れない。'});
-const dealtIds = [...cards.values()].filter(c => c.kind !== 'a').map(c => c.id); // 41枚
+// ランダムに配るのはB32枚＋読取不能データ1枚の33枚（3人が7枚、2人が6枚）。閲覧カードはランダムには配らず、交換の時間が終わったときに各PCに2枚ずつ渡す。
+const dealtIds = [...cards.values()].filter(c => c.kind === 'b' || c.kind === 'joker').map(c => c.id);
+const viewCardsFor = seat => Array.from({length: VIEW_PER_PLAYER}, (_, i) => 'E' + ((seat - 1) * VIEW_PER_PLAYER + i + 1));
 
 const evidence = publicEvidence;
 const arrivals = catalog.arrivals;
 // 最初のハンドアウトの背景（Word 2章「最初のハンドアウト」のPC別の背景）
 const backgrounds = catalog.backgrounds;
-const left = seat => seat % 5 + 1;
+
+// 時系列に最初から入れておく、すでに分かっている情報（2026-11-19）。誰も直せない・消せない。
+// 18:30（低い音）と18:33（四人死亡）は、第二テストWord「真実と改変記憶の対応表」の仮の時刻（企業の筋書き）。要確認。
+const knownTimeline = () => [
+ {time: arrivals[1], text: 'PC1が工場に到着'},
+ {time: arrivals[4], text: 'PC4とPC5が工場に到着'},
+ {time: arrivals[2], text: 'PC2が工場に到着'},
+ {time: arrivals[3], text: 'PC3が工場に到着'},
+ {time: '18:11', text: '全員が管理室に集まり会議。それぞれの情報をPC3へ渡す。PC1は外部からの侵入を防ぐ暗号化を始める（共通の記憶）'},
+ {time: '18:26', text: '管理室の端末から、内側からの退出に鍵が設定される（事件資料）'},
+ {time: '18:30', text: '工場に低い音が響き始める（事件記録）'},
+ {time: '18:33', text: '低い音のおよそ3分後、工場内に残された四人が死亡。一人は死亡が確認されていない（事件記録）'},
+].map((x, i) => ({id: 'known' + (i + 1), ...x, by: '記録', at: i, fixed: true}));
 
 function createRoom() {
- const room = {id: randomBytes(4).toString('hex').toUpperCase(), hostToken: token(), phase: 'lobby', rev: 1, offers: [], announcements: [], returnLog: [], photos: Array.from({length: 6}, (_, i) => ({id: String(i + 1), title: `写真 ${String(i + 1).padStart(2, '0')}`, caption: '', image: null})), players: [], created: Date.now(), started: null, deadline: null, timeline: [], revealStep: 0};
+ const room = {id: randomBytes(4).toString('hex').toUpperCase(), hostToken: token(), phase: 'lobby', rev: 1, offers: [], announcements: [], returnLog: [], photos: Array.from({length: 6}, (_, i) => ({id: String(i + 1), title: `写真 ${String(i + 1).padStart(2, '0')}`, caption: '', image: null})), players: [], created: Date.now(), started: null, deadline: null, timeline: knownTimeline(), revealStep: 0};
  // self：40分の間に自分で集めて復元した記憶（番号と時刻）。断片の表示と「情報を早く集めたか」の評価に使う。
- for (let seat = 1; seat <= 5; seat++) room.players.push({seat, token: token(), hand: [], protected: [], restored: [], self: [], shared: [], notices: [], tutorial: false, joined: false, vote: null});
+ for (let seat = 1; seat <= 5; seat++) room.players.push({seat, token: token(), hand: [], protected: [], restored: [], self: [], shared: [], viewed: [], notices: [], tutorial: false, joined: false, vote: null});
  return room;
 }
 function identify(room, key) { if (key === room.hostToken) return {host: true}; const player = room.players.find(p => p.token === key); if (!player) fail('参加情報が確認できません。招待リンクを開き直してください。', 401); return {host: false, player}; }
 function notice(p, text) { p.notices.unshift({id: token().slice(0, 9), text, at: Date.now()}); p.notices = p.notices.slice(0, 30); }
 function announce(room, text) { room.announcements.unshift({id: token().slice(0, 9), text, at: Date.now()}); room.announcements = room.announcements.slice(0, 20); }
 
-// 配る：自分のBは自分に配らない。4人が8枚、1人が9枚。1人の手札に3人分以上のBが混ざる。
+// 配る：自分のBは自分に配らない。3人が7枚、2人が6枚（B32＋読取不能データ1）。1人の手札に3人分以上のBが混ざる。
 function deal(rand = randomInt) {
  for (let attempt = 0; attempt < 500; attempt++) {
   const hands = [[], [], [], [], []];
   const bs = shuffle(dealtIds.filter(id => cards.get(id).kind === 'b'));
   const rest = shuffle(dealtIds.filter(id => cards.get(id).kind !== 'b'));
-  let ok = true;
   for (const id of bs) {
    const owner = cards.get(id).owner;
    const options = [0, 1, 2, 3, 4].filter(i => i + 1 !== owner);
@@ -67,20 +78,14 @@ function deal(rand = randomInt) {
    const pick = options.filter(i => hands[i].length === min);
    hands[pick[rand(pick.length)]].push(id);
   }
-  const big = rand(5);
   for (const id of rest) {
-   const target = [0, 1, 2, 3, 4].filter(i => hands[i].length < (i === big ? 9 : 8));
-   if (!target.length) { ok = false; break; }
-   const min = Math.min(...target.map(i => hands[i].length));
-   const pick = target.filter(i => hands[i].length === min);
+   const min = Math.min(...hands.map(h => h.length));
+   const pick = [0, 1, 2, 3, 4].filter(i => hands[i].length === min);
    hands[pick[rand(pick.length)]].push(id);
   }
-  if (!ok) continue;
   const mixed = hands.every(h => new Set(h.filter(id => cards.get(id).kind === 'b').map(id => cards.get(id).owner)).size >= 3);
   const sizes = hands.map(h => h.length).sort().join();
-  // 同じ効果カードが1人に2枚入らないようにする
-  const spread = hands.every(h => { const effs = h.filter(id => cards.get(id).kind === 'effect').map(id => cards.get(id).effect); return new Set(effs).size === effs.length; });
-  if (mixed && spread && sizes === '8,8,8,8,9') return hands;
+  if (mixed && sizes === '6,6,7,7,7') return hands;
  }
  throw new Error('配り方が見つかりません。');
 }
@@ -111,11 +116,14 @@ function forceReturn(room, now, early = false) {
    room.returnLog.push({id, holder: p.seat});
   }
   p.protected = [];
+  // 交換の時間が終わったら、記憶の閲覧カードを1人2枚配る（2026-11-19）。
+  for (const id of viewCardsFor(p.seat)) if (!p.hand.includes(id)) p.hand.push(id);
+  notice(p, '記憶の閲覧カードが2枚配られました。番号を選ぶと、ほかの人の記憶を読めます。');
  }
  room.returnLog.sort((a, b) => a.id.localeCompare(b.id));
  room.offers = [];
  room.phase = 'vote'; room.deadline = now + VOTE_MS;
- announce(room, `${early ? 'プレイを終了しました' : '40分が経ちました'}。手元に残った記憶は、すべて持ち主へ返されました。投票の時間です。`);
+ announce(room, `${early ? 'プレイを終了しました' : '交換の時間を終えました'}。手元に残った記憶は、すべて持ち主へ返されました。投票の時間です。`);
 }
 
 // 全員で共有する時系列。誰でも追加・修正・削除でき、書いた人のPC番号が残る。
@@ -136,6 +144,7 @@ function timelineAct(room, who, a, now) {
   return;
  }
  const item = room.timeline.find(x => x.id === String(a.id)); if (!item) fail('その出来事は、すでに消されています。');
+ if (item.fixed) fail('最初から入っている記録は、直したり消したりできません。');
  if (a.type === 'timelineEdit') Object.assign(item, clean(), {editedBy: by});
  else if (a.type === 'timelineRemove') room.timeline = room.timeline.filter(x => x !== item);
  else fail('操作を確認できません。');
@@ -158,7 +167,8 @@ function revealView(room) {
 }
 const sortedTimeline = room => [...room.timeline].sort((a, b) => (a.time ? 0 : 1) - (b.time ? 0 : 1) || a.time.localeCompare(b.time) || a.at - b.at);
 function tick(room, now = Date.now()) {
- if (room.phase === 'play' && room.deadline && now >= room.deadline) { forceReturn(room, room.deadline); room.rev++; }
+ // 2026-11-19：40分たっても自動では投票に移らない（念のため）。お知らせを1回だけ出し、進行担当の「交換を終えて投票へ」で移る。
+ if (room.phase === 'play' && room.deadline && now >= room.deadline && !room.timeUp) { room.timeUp = true; announce(room, '40分が経ちました。進行担当の合図で、残りの記憶を持ち主へ返し、投票に移ります。'); room.rev++; }
  if (room.phase === 'vote' && room.deadline && now >= room.deadline) { room.phase = 'finished'; announce(room, '投票の時間が終わりました。投票を締め切りました。'); room.rev++; }
 }
 
@@ -168,7 +178,7 @@ function viewCard(id, p) {
 }
 function snapshot(room, who, now = Date.now()) {
  tick(room, now);
- const common = {id: room.id, phase: room.phase, rev: room.rev, started: room.started, deadline: room.deadline, now, evidence, timeline: sortedTimeline(room), announcements: room.announcements, returnLog: room.phase === 'lobby' || room.phase === 'play' ? [] : room.returnLog, photos: room.photos.map(({image, ...p}) => ({...p, ready: Boolean(image)})), players: room.players.map(p => ({seat: p.seat, joined: p.joined})), version: VERSION, effects: EFFECTS, reveal: revealView(room), revealTotal: reveal.steps.length};
+ const common = {id: room.id, phase: room.phase, rev: room.rev, started: room.started, deadline: room.deadline, now, evidence, timeline: sortedTimeline(room), announcements: room.announcements, returnLog: [] /* 2026-11-19：返却の記録（最後に誰が持っていたか）は画面に出さない。部屋の中には残す */, photos: room.photos.map(({image, ...p}) => ({...p, ready: Boolean(image)})), players: room.players.map(p => ({seat: p.seat, joined: p.joined})), version: VERSION, effects: EFFECTS, reveal: revealView(room), revealTotal: reveal.steps.length};
  if (who.host) return {...common, host: true, invites: room.players.map(p => ({seat: p.seat, token: p.token})), progress: room.players.map(p => ({seat: p.seat, tutorial: p.tutorial, hand: p.hand.length, restored: p.restored.length, needed: units.filter(u => u.owner === p.seat).length, vote: p.vote})), pairCount: units.length, cardCount: dealtIds.length, photoCandidates: Array(6).fill('追加の現場画像'), results: room.phase === 'finished' ? tally(room) : null};
  const p = who.player;
  const mine = units.filter(u => u.owner === p.seat);
@@ -177,7 +187,9 @@ function snapshot(room, who, now = Date.now()) {
    hand: p.hand.map(id => viewCard(id, p)),
    memories: mine.map(u => ({key: u.key, title: u.title, place: u.place, a: u.a, done: p.restored.includes(u.key)})),
    restored: mine.filter(u => p.restored.includes(u.key)).map(u => ({key: u.key, title: u.title, text: u.text})),
-   shared: p.shared, flash: flashFor(p, now)},
+   shared: p.shared, viewed: p.viewed, flash: flashFor(p, now),
+   // 閲覧カードで選べる番号（自分の記憶以外の全部）。番号だけで、持ち主は出さない。
+   viewable: units.filter(u => u.owner !== p.seat).map(u => u.key).sort((a, b) => Number(a) - Number(b))},
   offers: room.offers.filter(o => o.from === p.seat || o.to === p.seat).map(o => ({id: o.id, from: o.from, to: o.to, cardId: o.cardId, request: o.request})),
   results: room.phase === 'finished' ? tally(room) : null};
 }
@@ -195,10 +207,10 @@ function act(room, who, a, now = Date.now()) {
   if (a.type === 'begin') {
    if (room.phase !== 'lobby') fail('すでに開始しています。');
    const hands = deal();
-   room.players.forEach((pl, i) => { pl.hand = hands[i]; pl.protected = []; pl.restored = []; pl.self = []; pl.shared = []; pl.vote = null; pl.notices = []; });
-   room.phase = 'play'; room.started = now; room.deadline = now + EXCHANGE_MS; room.offers = []; room.announcements = []; room.returnLog = []; room.revealStep = 0;
+   room.players.forEach((pl, i) => { pl.hand = hands[i]; pl.protected = []; pl.restored = []; pl.self = []; pl.shared = []; pl.viewed = []; pl.vote = null; pl.notices = []; });
+   room.phase = 'play'; room.started = now; room.deadline = now + EXCHANGE_MS; room.offers = []; room.announcements = []; room.returnLog = []; room.revealStep = 0; room.timeUp = false;
    announce(room, 'プレイを始めます。時間は40分です。交換も話し合いも、この時間の中で自由に行ってください。');
-  } else if (a.type === 'endExchange') { if (room.phase !== 'play') fail('プレイ中のみ操作できます。'); forceReturn(room, now, true);
+  } else if (a.type === 'endExchange') { if (room.phase !== 'play') fail('プレイ中のみ操作できます。'); forceReturn(room, now, now < room.deadline);
   } else if (a.type === 'votePhase') { if (room.phase !== 'discuss') fail('返却のあと、照合と議論から投票へ進めてください。'); room.phase = 'vote'; room.deadline = now + VOTE_MS; announce(room, '投票の時間です。');
   } else if (a.type === 'finish') { if (room.phase !== 'vote') fail('投票中に終了できます。'); room.phase = 'finished'; announce(room, '投票を締め切りました。');
   } else if (a.type === 'reveal') { if (room.phase !== 'finished') fail('投票を締め切ってから発表できます。'); if (room.revealStep >= reveal.steps.length) fail('発表はすべて表示しました。'); room.revealStep++;
@@ -222,63 +234,33 @@ function act(room, who, a, now = Date.now()) {
   for (const t of ts) { if (!t.shared.some(s => s.key === u.key && s.from === p.seat)) t.shared.push({key: u.key, from: p.seat, title: u.title, text: u.text}); notice(t, `PC${p.seat}から記憶が共有されました。`); }
   room.rev++; return;
  }
- if (room.phase !== 'play') fail('カードの操作は交換の時間中に行えます。');
+ // 記憶の閲覧カード：交換の時間（40分）が終わったあと（投票中・締め切り後）に使う。
+ if (a.type === 'effect') { useView(room, p, a); room.rev++; return; }
+ if (room.phase !== 'play') fail('カードを渡せるのは、交換の時間中だけです。');
  const has = (pl, id) => pl.hand.includes(String(id));
  const move = (from, to, id) => { id = String(id); if (!has(from, id)) fail('カードが移動しています。手札を確認してください。'); from.hand.splice(from.hand.indexOf(id), 1); from.protected = from.protected.filter(x => x !== id); to.hand.push(id); };
  if (a.type === 'give') {
-  const t = target(room, p, a.to); move(p, t, a.cardId); notice(t, `PC${p.seat}から #${a.cardId} を受け取りました。`);
- } else if (a.type === 'offer') {
-  const t = target(room, p, a.to); if (!has(p, a.cardId)) fail('そのカードは手元にありません。'); if (room.offers.some(o => o.from === p.seat && o.cardId === String(a.cardId))) fail('このカードは交換提案中です。'); if (room.offers.length >= 20) fail('未処理の提案を先に確認してください。');
-  const request = String(a.request || '').trim().replace(/^#/, '').toUpperCase();
-  if (request && !cards.has(request)) fail('そのカード番号はありません。12-B のように入力してください。');
-  room.offers.push({id: token().slice(0, 12), from: p.seat, to: t.seat, cardId: String(a.cardId), request}); notice(t, `PC${p.seat}から交換の提案が届きました。`);
- } else if (a.type === 'accept') {
-  const o = room.offers.find(o => o.id === a.offerId && o.to === p.seat); if (!o) fail('交換提案が見つかりません。'); const from = room.players[o.from - 1];
-  if (!has(from, o.cardId) || !has(p, a.cardId)) fail('カードが移動しています。提案を取り消して確認してください。'); if (o.request && o.request !== String(a.cardId)) fail(`指定されたカード #${o.request} を選んでください。`);
-  move(from, p, o.cardId); move(p, from, a.cardId); room.offers = room.offers.filter(x => x.id !== o.id); notice(from, `PC${p.seat}との交換が成立しました。`); notice(p, `PC${from.seat}との交換が成立しました。`);
- } else if (a.type === 'decline') {
-  const o = room.offers.find(o => o.id === a.offerId && (o.to === p.seat || o.from === p.seat)); if (!o) fail('交換提案がありません。'); room.offers = room.offers.filter(x => x.id !== o.id);
- } else if (a.type === 'effect') {
-  useEffect(room, p, a, move);
- } else fail('操作を確認できません。');
- room.offers = room.offers.filter(o => has(room.players[o.from - 1], o.cardId));
+  const t = target(room, p, a.to);
+  if (has(p, a.cardId) && cards.get(String(a.cardId)).kind === 'effect') fail('記憶の閲覧カードは渡せません。');
+  move(p, t, a.cardId); notice(t, `PC${p.seat}から ${cards.get(String(a.cardId)).kind === 'b' ? '#' + a.cardId : '読み取れないデータ'} を受け取りました。`);
+ } else if (['offer', 'accept', 'decline'].includes(a.type)) fail('交換の申し込みはなくなりました。カードは「渡す」で渡してください。');
+ else fail('操作を確認できません。');
  autoRestore(room, now);
  room.rev++;
 }
 function target(room, p, to) { const t = room.players.find(x => x.seat === Number(to)); if (!t || t === p) fail('相手を選んでください。'); return t; }
-const movable = (pl, id) => !pl.protected.includes(id) && cards.get(id).kind !== 'joker';
-function bNumber(raw) { const n = String(raw || '').trim().replace(/^#/, '').replace(/-?B$/i, ''); const id = n + '-B'; if (!cards.has(id)) fail('その番号のBはありません。番号だけを入力してください（例：24）。'); return id; }
 
-function useEffect(room, p, a, move) {
+function useView(room, p, a) {
+ if (!['vote', 'finished'].includes(room.phase)) fail('記憶の閲覧は、交換の時間が終わってから使えます。');
  const id = String(a.cardId); if (!p.hand.includes(id)) fail('その効果カードは手元にありません。');
- const c = cards.get(id); if (c.kind !== 'effect') fail('効果カードを選んでください。');
- const discard = () => { p.hand = p.hand.filter(x => x !== id); p.protected = p.protected.filter(x => x !== id); };
- if (c.effect === 'steal') {
-  const t = target(room, p, a.to); const pool = t.hand.filter(x => movable(t, x)); if (!pool.length) fail(`PC${t.seat}の手札には、抜き取れるカードがありません。`);
-  discard(); const got = pool[randomInt(pool.length)]; move(t, p, got);
-  notice(t, `手札から #${got} が1枚抜き取られました。誰が抜いたかは分かりません。`); notice(p, `抜き取り：PC${t.seat}から #${got} を取りました。`);
- } else if (c.effect === 'name') {
-  const want = bNumber(a.number); const holder = room.players.find(x => x.hand.includes(want));
-  if (!holder) fail(`#${want} は今、誰の手札にもありません。`); if (holder === p) fail(`#${want} はすでに手元にあります。`); if (holder.protected.includes(want)) fail(`#${want} は保護されていて、指名できません。この効果カードは使われていません。`);
-  discard(); move(holder, p, want);
-  announce(room, `指名：誰かが #${want} を指名しました。持っていた人は、そのカードを渡しました。`);
-  notice(holder, `指名により、#${want} を渡しました。誰が指名したかは分かりません。`); notice(p, `指名：#${want} を受け取りました（PC${holder.seat}が持っていました）。`);
- } else if (c.effect === 'trace') {
-  const want = bNumber(a.number); const holder = room.players.find(x => x.hand.includes(want));
-  discard(); notice(p, holder ? `追跡：#${want} は今、PC${holder.seat}が持っています。` : `追跡：#${want} は今、誰の手札にもありません（すでに復元されています）。`);
- } else if (c.effect === 'peek') {
-  const t = target(room, p, a.to); discard();
-  const list = t.hand.map(x => { const k = cards.get(x).kind; return k === 'b' ? '#' + x : k === 'effect' ? '効果カード' : 'ジョーカー'; });
-  notice(p, `のぞき見：PC${t.seat}の手札（${list.length}枚）… ${list.join('、') || 'なし'}`);
- } else if (c.effect === 'protect') {
-  const keep = String(a.keep || ''); if (!p.hand.includes(keep) || keep === id) fail('守るカードを手札から選んでください。'); if (cards.get(keep).kind === 'joker') fail('ジョーカーは効果カードの対象になりません。');
-  discard(); p.protected.push(keep); notice(p, `保護：#${keep} を最後まで守ります。`);
- } else if (c.effect === 'shuffle') {
-  discard();
-  const passes = room.players.map(pl => { const pool = pl.hand.filter(x => movable(pl, x)); return pool.length ? [pl, pool[randomInt(pool.length)]] : null; }).filter(Boolean);
-  for (const [pl, x] of passes) { const to = room.players[left(pl.seat) - 1]; move(pl, to, x); notice(to, `攪乱：PC${pl.seat}から #${x} が回ってきました。`); }
-  announce(room, '攪乱：全員の手札から1枚ずつ、左隣へ回りました。');
- } else fail('効果を確認できません。');
+ const c = cards.get(id); if (c.kind !== 'effect' || c.effect !== 'view') fail('記憶の閲覧カードを選んでください。');
+ const key = String(a.number || '').trim().replace(/^#/, '').replace(/-?[AB]$/i, '');
+ const u = units.find(u => u.key === key); if (!u) fail('その番号の記憶はありません。番号だけを選んでください（例：24）。');
+ if (u.owner === p.seat) fail('自分の記憶は「復元」タブで読めます。ほかの番号を選んでください。');
+ if (p.viewed.some(v => v.key === u.key)) fail(`#${u.key} はもう読んでいます。「復元」タブで読み返せます。`);
+ p.hand = p.hand.filter(x => x !== id);
+ p.viewed.push({key: u.key, title: u.title, text: u.text});
+ notice(p, `記憶の閲覧：#${u.key} を読みました。「復元」タブで読み返せます。`);
 }
 
 return {VERSION, EXCHANGE_MS, VOTE_MS, GameError, EFFECTS, units, cards, dealtIds, createRoom, identify, deal, tick, snapshot, act};

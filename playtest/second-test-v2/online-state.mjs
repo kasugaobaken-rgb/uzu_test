@@ -7,10 +7,10 @@ const plain = v => JSON.parse(JSON.stringify(v));
 export function normalizeRoom(raw) {
  const r = structuredClone(raw);
  for (const k of ['offers', 'announcements', 'returnLog', 'photos', 'timeline']) r[k] = list(r[k]);
- r.started ??= null; r.deadline ??= null; r.revealStep ??= 0;
+ r.started ??= null; r.deadline ??= null; r.revealStep ??= 0; r.timeUp ??= false;
  for (const ph of r.photos) { ph.image ??= null; ph.caption ??= ''; }
  r.players = list(r.players).sort((a, b) => a.seat - b.seat);
- for (const p of r.players) { for (const k of ['hand', 'protected', 'restored', 'self', 'shared', 'notices']) p[k] = list(p[k]); p.vote ??= null; }
+ for (const p of r.players) { for (const k of ['hand', 'protected', 'restored', 'self', 'shared', 'viewed', 'notices']) p[k] = list(p[k]); p.vote ??= null; }
  return r;
 }
 export function normalizeCatalog(c) {
@@ -24,7 +24,7 @@ function artFor(game, catalog, room, p) {
  for (const u of game.units) {
   if (u.owner === p.seat) give('m' + u.key + '-A');
   if (p.hand.includes(u.key + '-B')) give('m' + u.key + '-B');
-  if ((u.owner === p.seat && p.restored.includes(u.key)) || p.shared.some(s => s.key === u.key)) give('m' + u.key);
+  if ((u.owner === p.seat && p.restored.includes(u.key)) || p.shared.some(s => s.key === u.key) || p.viewed.some(v => v.key === u.key)) give('m' + u.key);
  }
  return out;
 }
@@ -41,7 +41,8 @@ export function populateViews(data, now = Date.now()) {
  data.private.state = plain(room); return data;
 }
 
-const due = (data, now) => { const s = data?.private?.state; return Boolean(s && ['play', 'vote'].includes(s.phase) && s.deadline && now >= s.deadline); };
+// 40分（play）は「時間です」のお知らせを1回出すだけ（投票へは進行担当が移す）。投票（vote）の5分は自動で締め切る。
+const due = (data, now) => { const s = data?.private?.state; return Boolean(s && s.deadline && now >= s.deadline && (s.phase === 'vote' || (s.phase === 'play' && !s.timeUp))); };
 export function hasWork(data, now = Date.now()) {
  return due(data, now) || Object.values(data?.mailboxes || {}).some(b => b.uid && (!data.members?.[b.uid] || b.view?._readyUid !== b.uid) || Object.keys(b.requests || {}).length);
 }

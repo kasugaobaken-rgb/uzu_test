@@ -42,7 +42,8 @@ const cardLabel=c=>c.kind==='b'?'#'+c.id:c.kind==='effect'?c.title:corruptedReco
 function remaining(){if(!S||!['play','vote'].includes(S.phase)||!S.deadline)return null;return Math.max(0,S.deadline-(Date.now()+clockOffset));}
 function fmt(ms){const s=Math.ceil(ms/1000);return `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;}
 // 残り3分で色が変わり、残り1分で点滅する。進行画面の時計も同じ処理で動かす。
-function updateClock(){const r=remaining();document.querySelectorAll('[data-timer]').forEach(el=>{el.hidden=r===null;if(r===null)return;el.innerHTML=`<small>${S.phase==='vote'?'投票 残り':'残り'}</small><b>${fmt(r)}</b>`;el.classList.toggle('urgent',r<(S.phase==='vote'?60000:300000));el.classList.toggle('final',r<60000);});if(r===0)poll();}
+function updateClock(){const r=remaining();document.querySelectorAll('[data-timer]').forEach(el=>{el.hidden=r===null;if(r===null)return;el.innerHTML=`<small>${S.phase==='vote'?'投票 残り':'残り'}</small><b>${fmt(r)}</b>`;el.classList.toggle('urgent',r<(S.phase==='vote'?60000:300000));el.classList.toggle('final',r<60000);});if(r===0&&zeroPolled!==S.phase+S.deadline){zeroPolled=S.phase+S.deadline;poll();}}
+let zeroPolled='';
 setInterval(updateClock,500);
 
 function render(force=false){
@@ -69,7 +70,7 @@ function render(force=false){
  $('handCount').textContent=S.me.hand.length;$('restoreCount').textContent=`${S.me.restored.length}/${S.me.memories.length}`;$('timelineCount').textContent=(S.timeline||[]).length||'';
  document.querySelectorAll('[data-tab]').forEach(b=>{b.classList.toggle('active',b.dataset.tab===tab);b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false');});
  $('pane').hidden=tab==='scene';$('scenePane').hidden=tab!=='scene';
- if(tab==='scene'){if(!$('sceneFrame').getAttribute('src'))$('sceneFrame').src=`scene.html?mode=pixel&session=${S.id}&seat=${S.me.seat}`;}
+ if(tab==='scene'){if(!$('sceneFrame').getAttribute('src'))$('sceneFrame').src=`scene.html?mode=pixel&session=${S.id}&seat=${S.me.seat}`;$('sceneTop').innerHTML=renderSceneTop();$('sceneInfo').innerHTML=renderSceneInfo();}
  else $('pane').innerHTML=({hand:renderHand,timeline:renderTimeline,restored:renderRestored,case:renderCase,photos:renderPhotos,tutorial:renderTutorial}[tab]||renderHand)();
  if(lastNotice!==(S.me.notices[0]?.id||'empty')){if(lastNotice!==null&&S.me.notices[0])toast(S.me.notices[0].text);lastNotice=S.me.notices[0]?.id||'empty';}
  if(lastAnnounce!==(S.announcements[0]?.id||'empty')){if(lastAnnounce!==null&&S.announcements[0])toast(S.announcements[0].text);lastAnnounce=S.announcements[0]?.id||'empty';}
@@ -135,7 +136,7 @@ function renderAlbum(me){
    :`<span class="slot-art half-a">${artImg(m.key,'A')}<span class="slot-label-a">A</span></span><span class="slot-art half-b"><span class="slot-want">#${esc(m.key)}-B</span><span class="slot-q">？</span></span>`;
   return `<button type="button" class="album-slot ${m.done?'done':'open'} ${fresh?'fresh':''}" data-action="slotOpen" data-key="${esc(m.key)}" aria-label="#${esc(m.key)} ${m.done?'復元済み':'#'+esc(m.key)+'-Bを探している'}"><span class="slot-frame">${visual}</span><span class="slot-cap"><b>#${esc(m.key)}</b><span>${m.done?'✓ 復元':'Bを探す'}</span></span></button>`;
  }).join('');
- return `<section class="album" aria-label="自分の記憶"><div class="album-head"><div><div class="eyebrow">YOUR MEMORY / PC${me.seat}</div><h2>自分の記憶</h2></div><div class="album-count" aria-label="復元 ${done.length} / ${me.memories.length}"><b>${done.length}</b><span>/ ${me.memories.length}</span><small>${open.length?'復元':'すべて復元'}</small></div></div><div class="album-grid">${slots}</div><p class="album-note">欲しい番号を口にすると、その記憶が自分のものだと周りに知られます。枠をタップするとAの全文を読めます。</p></section>`;
+ return `<section class="album" aria-label="自分の記憶"><div class="album-head"><div><div class="eyebrow">YOUR MEMORY / PC${me.seat}</div><h2>自分の記憶</h2></div><div class="album-count" aria-label="復元 ${done.length} / ${me.memories.length}"><b>${done.length}</b><span>/ ${me.memories.length}</span><small>${open.length?'復元':'すべて復元'}</small></div></div><div class="album-grid">${slots}</div><p class="album-note">自分が探している番号をみんなに伝えて、持っている人から渡してもらいましょう。枠をタップするとAの全文を読めます。</p></section>`;
 }
 // 手札は小さなカードの一覧。番号を大きく、絵は小さく。タップで詳細と交換。
 function renderHandCard(c){
@@ -151,9 +152,9 @@ function renderReturnLog(){
 }
 function renderHand(){
  const me=S.me,play=S.phase==='play';
- let intro='Bを、会話・交換・効果カードで集めてください。嘘をついてもかまいません。40分たつと、残りの記憶は持ち主へ返され、投票に移ります。';
+ let intro='番号を伝えあって、Bを必要な人に渡してください。手元のBは、渡す前に読めます。40分たったら、進行担当の合図で残りの記憶が持ち主へ返され、投票に移ります。';
  if(S.phase==='lobby')intro='進行担当が開始すると、自分の記憶のAと手札が届きます。事件資料・防犯カメラ・3D現場は先に確認できます。';
- if(S.phase==='vote')intro='プレイ時間が終わりました。残っていた記憶は持ち主へ返されています。5分以内に投票してください。時間が来ると自動で締め切られます。';
+ if(S.phase==='vote')intro='プレイ時間が終わりました。残っていた記憶は持ち主へ返されています。手札に配られた「記憶の閲覧」2枚で、ほかの人の記憶を2つまで読めます。5分以内に投票してください。時間が来ると自動で締め切られます。';
  if(S.phase==='discuss')intro='交換は終わりました。記憶と資料を照合して、誰が仲間を閉じ込め、生き残ったのかを話し合ってください。';
  const order={b:0,effect:1,joker:2};
  const cards=[...me.hand].sort((a,b)=>order[a.kind]-order[b.kind]||a.id.localeCompare(b.id,undefined,{numeric:true}));
@@ -166,8 +167,37 @@ function renderHand(){
   +`<div class="hand-deck-heading" id="handDeck"><h2>いまの手札 <span>${cards.length}枚</span></h2><span>タップで全文・交換</span></div><div class="hand-filters" role="group" aria-label="手札の種類">${filters.map(([value,label])=>`<button data-action="handFilter" data-kind="${value}" aria-pressed="${handFilter===value}">${label}<span>${value==='all'?cards.length:cards.filter(c=>c.kind===value).length}</span></button>`).join('')}</div><div class="columns hand-columns"><section><div class="hand-list">${filtered.map(renderHandCard).join('')||`<div class="empty">${handFilter==='all'?'手札はありません。':'この種類のカードはありません。'}</div>`}</div></section><aside><details class="panel" data-disclosure="announcements" ${disclosureOpen('announcements')?'open':''}><summary>全員へのお知らせ</summary>${S.announcements.map(n=>`<div class="notice">${esc(playerCopy(n.text))}<time>${new Date(n.at).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</time></div>`).join('')||'<p>お知らせはありません。</p>'}</details><details class="panel" data-disclosure="notices" ${disclosureOpen('notices')?'open':''}><summary>自分への通知 <span>${me.notices.length}</span></summary>${me.notices.map(n=>`<div class="notice">${esc(playerCopy(n.text))}<time>${new Date(n.at).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}</time></div>`).join('')||'<p>通知はありません。</p>'}</details></aside></div>`;
 }
 function shareControls(u){return `<form data-form="share" data-key="${esc(u.key)}" class="row"><select name="to" aria-label="記憶の共有先"><option value="all">全員に見せる</option>${seats()}</select><button ${!['play','discuss','vote'].includes(S.phase)?'disabled':''}>この記憶を見せる</button></form>`;}
-function renderRestored(){return heading('RESTORED MEMORIES','復元した記憶','見せるかどうかは、自分で決められます。見せると相手の画面にも残ります。')+`<div class="stack">${S.me.restored.map(u=>`<article class="panel"><div class="eyebrow">#${esc(u.key)}</div><h2>${esc(u.title)}</h2>${memoryArtHtml(u.key)}<p>${esc(u.text)}</p>${shareControls(u)}</article>`).join('')||'<div class="empty">まだ復元した記憶はありません。自分のBを集めてください。</div>'}</div><h2>他のPCから見せられた記憶</h2>${S.me.shared.map(u=>`<article class="panel"><span class="badge">PC${u.from}から</span><h2>${esc(u.title)}</h2>${memoryArtHtml(u.key)}<p>${esc(u.text)}</p></article>`).join('')||'<p class="muted">見せられた記憶はありません。</p>'}`;}
-function renderCase(){return heading('SHARED CASE FILES','事件資料','全員共通の資料です。ゲーム中いつでも読めます。')+`<div class="grid case-grid">${S.evidence.map((e,i)=>`<article class="panel"><div class="eyebrow">CASE FILE ${String(i+1).padStart(2,'0')}</div><h2>${esc(e.title)}</h2>${caseArtHtml(e.id)}<p>${esc(e.text)}</p></article>`).join('')}</div>`;}
+function renderRestored(){return heading('RESTORED MEMORIES','復元した記憶','見せるかどうかは、自分で決められます。見せると相手の画面にも残ります。')+`<div class="stack">${S.me.restored.map(u=>`<article class="panel"><div class="eyebrow">#${esc(u.key)}</div><h2>${esc(u.title)}</h2>${memoryArtHtml(u.key)}<p>${esc(u.text)}</p>${shareControls(u)}</article>`).join('')||'<div class="empty">まだ復元した記憶はありません。自分のBを集めてください。</div>'}</div><h2>他のPCから見せられた記憶</h2>${S.me.shared.map(u=>`<article class="panel"><span class="badge">PC${u.from}から</span><h2>${esc(u.title)}</h2>${memoryArtHtml(u.key)}<p>${esc(u.text)}</p></article>`).join('')||'<p class="muted">見せられた記憶はありません。</p>'}<h2>記憶の閲覧で読んだ記憶</h2>${(S.me.viewed||[]).map(u=>`<article class="panel"><span class="badge">#${esc(u.key)}</span><h2>${esc(u.title)}</h2>${memoryArtHtml(u.key)}<p>${esc(u.text)}</p></article>`).join('')||'<p class="muted">交換の時間が終わると「記憶の閲覧」が2枚配られます。番号を選んで読むと、ここに残ります。</p>'}`;}
+// 現場タブ（2026-11-19）：3D現場を中心に、選んだ部屋の事件資料と防犯カメラ、事件資料すべてを1つのタブにまとめる。
+// 部屋ごとの情報は、全員に公開している事件資料から抜き出したもの（新しい情報は足していない）。
+const sceneRooms={
+ management:{name:'管理室',camera:'管理室',facts:[['内側からの退出の鍵は、管理室の端末から設定する。番号は設定した人物だけが知る。','出入り口のロック'],['18時26分、内側からの退出に鍵が設定された。','追加設定の記録']]},
+ workshop:{name:'作業場',camera:'作業場',facts:[['プレス機付近：遺体 二人分','遺体の発見状況'],['研磨機付近：遺体 一人分','遺体の発見状況'],['プレス機付近：遺留品 義体の手','現場の遺留品'],['研磨機付近：遺留品 置き型の照明','現場の遺留品']]},
+ assembly:{name:'組立プログラミング室',camera:'組立プログラミング室',facts:[]},
+ reception:{name:'応接間',camera:'応接間',facts:[['遺留品：旧型端末 スマートフォン','現場の遺留品']]},
+ stairs:{name:'階段',camera:null,facts:[]},
+ store1:{name:'倉庫1',camera:'倉庫1',facts:[]},
+ store2:{name:'倉庫2',camera:'倉庫2',facts:[['遺体 一人分','遺体の発見状況'],['遺留品：警察手帳とロケット','現場の遺留品'],['常設の照明は故障していて、調べるには別の明かりが必要だった。','倉庫2の照明']]},
+};
+let sceneRoom=null;
+// 上：事件資料（1件ずつタップで開く）と推理の考え方。下：3Dで選んだ部屋の事件資料と、防犯カメラ一覧のボタン。
+function renderSceneTop(){
+ return `<section class="scene-cases" aria-label="事件資料"><div class="scene-cases-head"><h2>事件資料 <small>全${S.evidence.length}件・全員共通</small></h2></div>${S.evidence.map((e,i)=>`<details class="case-item" data-disclosure="case-${esc(e.id)}" ${disclosureState.get('case-'+e.id)?'open':''}><summary><span class="case-no">${String(i+1).padStart(2,'0')}</span>${esc(e.title)}</summary><div class="case-body">${caseArtHtml(e.id)}<p>${esc(e.text)}</p></div></details>`).join('')}</section>${hintPanel()}<p class="scene-guide">下の3Dの<b class="cam-mark" aria-hidden="true">▣</b>カメラのマークをタップすると、その部屋の防犯カメラの画像が見られます。</p>`;
+}
+function renderSceneInfo(){
+ const r=sceneRoom&&sceneRooms[sceneRoom];
+ const facts=r?(r.facts.length?`<ul class="room-facts">${r.facts.map(([t,src])=>`<li>${esc(t)}<small>事件資料「${esc(src)}」</small></li>`).join('')}</ul>`:'<p class="muted">この部屋についての事件資料の記載はありません。</p>'):'<p class="muted">3Dで部屋を選ぶと、その部屋についての事件資料がここに出ます。</p>';
+ return `<article class="panel room-panel"><div class="eyebrow">SELECTED ROOM / 選んでいる部屋</div><h2>${r?esc(r.name):'部屋を選んでいません'}</h2>${facts}${r?.camera?`<p><button type="button" data-action="cameraRoom" data-room="${esc(r.camera)}">この部屋の防犯カメラを見る</button></p>`:''}</article><p><button type="button" data-action="cameraRoom" data-room="all">防犯カメラの画像をすべて見る（${cameraRecords.length}枚）</button></p>`;
+}
+// 防犯カメラの画像を、部屋ごとにダイアログで見る（3Dのカメラのマーク・ボタンから）。
+function openCameraRoom(room){
+ $('cardDetail').innerHTML=`<div class="eyebrow">SECURITY CAMERA / ${room==='all'?'ALL ROOMS':'ROOM'}</div><h2>${room==='all'?'防犯カメラ（すべて）':esc(room)+'の防犯カメラ'}</h2><div class="camera-room-dialog">${renderCameraRecords(room)}</div>`;
+ if($('cardDialog').open)$('cardDialog').close();
+ $('cardDialog').showModal();
+}
+// 初めての人向けの「推理の考え方」。導入画面・事件資料・時系列に出す（答えそのものは書かない）。
+function hintPanel(){return `<aside class="panel hint-panel" aria-label="推理の考え方"><div class="eyebrow">HINT / 推理の考え方</div><p><b>犯人は、仲間を閉じ込めて生き残った一人。</b></p><p>事件資料の遺体は四人分。<b>だれが、どこで死んだのか</b>を記憶から突き止めると、残った一人が見えてきます。</p></aside>`;}
+function renderCase(){return heading('SHARED CASE FILES','事件資料','全員共通の資料です。ゲーム中いつでも読めます。')+hintPanel()+`<div class="grid case-grid">${S.evidence.map((e,i)=>`<article class="panel"><div class="eyebrow">CASE FILE ${String(i+1).padStart(2,'0')}</div><h2>${esc(e.title)}</h2>${caseArtHtml(e.id)}<p>${esc(e.text)}</p></article>`).join('')}</div>`;}
 function renderPhotos(){const extra=S.photos.filter(p=>p.ready);return heading('SECURITY CAMERA / SHARED RECORDS','防犯カメラ','現場に残った23枚の画像。全員が最初から見られます。')+renderCameraRecords(cameraFilter)+(extra.length?`<h2>追加の共有画像</h2><div class="grid">${extra.map(p=>`<article class="panel photo"><a href="${esc(photoUrl(p))}" target="_blank" rel="noopener"><img src="${esc(photoUrl(p))}" alt="${esc(p.title)}" loading="lazy"></a><div class="caption"><h2>${esc(p.title)}</h2><p>${esc(p.caption)}</p></div></article>`).join('')}</div>`:'');}
 function openCamera(id){const r=cameraRecords.find(r=>r.id===id);if(!r)return;$('cameraTitle').textContent=`${r.room} / 抽出画像 ${r.id}`;const img=$('cameraImage');img.src=r.src;img.alt=`${r.room}の防犯カメラ抽出画像 ${r.id}`;$('cameraOriginal').href=r.src;$('cameraImageFrame').classList.remove('zoomed');$('cameraZoom').textContent='原寸で見る';$('cameraZoom').setAttribute('aria-pressed','false');$('cameraDialog').showModal();}
 // 導入は1画面：ハンドアウト1枚＋絵付きの3ステップ＋共通の記憶の照合。細かいルールは折りたたむ。
@@ -175,11 +205,11 @@ function renderTutorial(){
  const me=S.me,first=me.memories.find(m=>!m.done)||me.memories[0],k=first?esc(first.key):'24';
  const steps=`<ol class="intro-steps" aria-label="遊び方の3ステップ">
 <li><div class="step-visual"><span class="mini-slot"><span class="mini-a">A</span><span class="mini-b">#${k}-B</span></span></div><b>自分のAを見る</b><span>Aは最初から手元。番号を見れば、探すBが分かる。</span></li>
-<li><div class="step-visual"><span class="mini-bubble">#${k}-B 持ってる人？</span></div><b>欲しい番号を聞く</b><span>もらう・交換する・効果カードで奪う。言うと自分の記憶だとばれる。</span></li>
+<li><div class="step-visual"><span class="mini-bubble">#${k}-B 持ってる人？</span></div><b>番号を伝えあう</b><span>持っている人に渡してもらう。手元の他人のBは、渡す前に読める。</span></li>
 <li><div class="step-visual"><span class="mini-slot done"><span class="mini-a">A</span><span class="mini-b">B</span></span></div><b>そろうと復元</b><span>同じ番号のBが来た瞬間、1枚の記憶になる。</span></li></ol>`;
  const check=`<article class="panel intro-check"><h2>はじめに：共通の記憶を照合する</h2><p class="muted">二枚を選んで、組み合わせてください。</p><div class="tutorial-cards"><button data-action="tutorialPick" data-id="a" class="${tutorialSelected.has('a')?'selected':''}">全員が管理室に集まり、会議をした。</button><button data-action="tutorialPick" data-id="b" class="${tutorialSelected.has('b')?'selected':''}">それぞれが持つ情報をPC3へ手渡した。</button></div><p><button class="primary" data-action="tutorial" ${tutorialSelected.size!==2?'disabled':''}>共通の記憶として照合する</button></p>${me.tutorial?'<p class="intro-done">✓ 全員で管理室に集まり、各自の情報をPC3へ渡した。PC1は外部侵入を防ぐ暗号化を始め、会議後も残って仕上げた。この作業だけでは内側からの退出は妨げられない。</p>':''}</article>`;
- const rules=`<details class="panel intro-rules"><summary>くわしい遊び方</summary><p><b>1.</b> 自分の記憶の前半（A）は、最初から手元にあります。番号を見れば、探すBが分かります（例：#24-A なら #24-B）。</p><p><b>2.</b> Bは他の人の手札にあります。持っている人は、本人より先に中身を読めます。</p><p><b>3.</b> 「#24-B持ってる人？」と聞いて、もらう・交換する・効果カードで奪う。欲しい番号を言うと、その記憶が自分のものだと知られます。</p><p><b>4.</b> 自分のBが手元に来ると、その場で復元されます。</p><p><b>5.</b> 持っていないと言っても、読んだ内容を偽って話してもかまいません。</p><p><b>6.</b> プレイ時間は40分。交換も話し合いも、この間に自由に行えます。時間が来ると、残りの記憶はすべて持ち主へ返され、最後に誰が持っていたかが全員に表示されて、投票に移ります。</p><p class="muted">UZUの採点：誰よりも早く情報を集められたか／裏切り者を特定できたか／自分が裏切り者だった場合、特定されずに済んだか。</p></details>`;
- return `<section class="intro"><article class="handout"><div class="eyebrow">HANDOUT / 導入情報（PC${me.seat}）</div><div class="handout-seat">AX-0${me.seat}</div><p class="handout-arrival">到着：${esc(me.arrival)}<small>（仮の時刻）</small></p><p>${esc(me.background)}</p><p class="handout-note">各モデルは、自らが裏切り者かどうかを判別できません。</p></article>${steps}${check}<p class="intro-go"><button class="primary" data-tab="hand">手札へ進む</button></p>${rules}</section>`;
+ const rules=`<details class="panel intro-rules"><summary>くわしい遊び方</summary><p><b>1.</b> 自分の記憶の前半（A）は、最初から手元にあります。番号を見れば、探すBが分かります（例：#24-A なら #24-B）。</p><p><b>2.</b> Bは他の人の手札にあります。カードに持ち主は書かれていません。持っている人は、本人より先に中身を読めます。</p><p><b>3.</b> 「#24-B持ってる人？」と番号を伝えあい、持っている人に「渡す」で渡してもらいます。交換はありません。</p><p><b>4.</b> 自分のBが手元に来ると、その場で復元されます。</p><p><b>5.</b> 渡さないことも、読んだ内容を偽って話すこともできます。</p><p><b>6.</b> プレイ時間は40分。受け渡しも話し合いも、この間に自由に行えます。40分たったら、進行担当の合図で残りの記憶がすべて持ち主へ返され、投票に移ります。</p><p><b>7.</b> 交換の時間が終わると、各自に「記憶の閲覧」が2枚配られます。番号を1つ選ぶと、ほかの人の記憶の全文を読めます。</p><p class="muted">UZUの採点：誰よりも早く情報を集められたか／裏切り者を特定できたか／自分が裏切り者だった場合、特定されずに済んだか。</p></details>`;
+ return `<section class="intro">${hintPanel()}<article class="handout"><div class="eyebrow">HANDOUT / 導入情報（PC${me.seat}）</div><div class="handout-seat">AX-0${me.seat}</div><p class="handout-arrival">到着：${esc(me.arrival)}<small>（仮の時刻）</small></p><p>${esc(me.background)}</p><p class="handout-note">各モデルは、自らが裏切り者かどうかを判別できません。</p></article>${steps}${check}<p class="intro-go"><button class="primary" data-tab="hand">手札へ進む</button></p>${rules}</section>`;
 }
 function renderVote(){return `<article class="panel"><h2>投票（5分）</h2><p>誰が仲間を閉じ込め、生き残ったと思いますか？</p><form data-form="vote" class="row"><select name="seat" aria-label="投票先">${S.players.map(p=>`<option value="${p.seat}" ${S.me.vote===p.seat?'selected':''}>PC${p.seat}</option>`).join('')}</select><button class="primary">投票する</button></form>${S.me.vote?`<p>現在の投票先：PC${S.me.vote}。締め切りまでは変えられます。</p>`:''}</article>`;}
 function renderResults(){return `<article class="panel"><h2>第二テストの投票終了</h2><p>投票を締め切りました。まもなく、この画面で結果が発表されます。</p></article>`;}
@@ -200,11 +230,12 @@ function renderReveal(){
  };
  return `<article class="reveal" aria-label="結果発表" aria-live="polite"><div class="rv-head"><div class="eyebrow">UZU / SECOND TEST RESULT</div><h1>結果発表</h1></div>${R.steps.map(block).join('')}${R.step<R.total?'<p class="rv-wait">進行担当が次を表示するまで、お待ちください。</p>':''}</article>`;
 }
+// 記憶の閲覧カード：交換の時間が終わったら、番号を選んで他の人の記憶を読む（1人2枚）。
 function effectForm(c){
- const play=S.phase==='play',dis=!play?'disabled':'';
- const others=S.me.hand.filter(x=>x.id!==c.id&&x.kind!=='joker');
- const field={steal:`<label class="field">抜き取る相手<select name="to">${seats()}</select></label>`,peek:`<label class="field">のぞく相手<select name="to">${seats()}</select></label>`,name:'<label class="field">指名する番号<input name="number" inputmode="numeric" maxlength="4" placeholder="例：24" required></label>',trace:'<label class="field">追跡する番号<input name="number" inputmode="numeric" maxlength="4" placeholder="例：24" required></label>',protect:`<label class="field">守るカード<select name="keep">${others.map(x=>`<option value="${esc(x.id)}">${esc(cardLabel(x))}</option>`).join('')}</select></label>`,shuffle:'<p class="muted">全員の手札から1枚ずつ（保護中と読取不能データを除く）、左隣へ回ります。</p>'}[c.effect];
- return `<form data-form="effect" data-card="${esc(c.id)}" class="stack"><h3>この効果を使う</h3>${field}<button class="danger" ${dis}>使う（1回で捨て札）</button></form>`;
+ const ready=['vote','finished'].includes(S.phase);
+ const read=new Set((S.me.viewed||[]).map(v=>v.key));
+ const options=(S.me.viewable||[]).filter(k=>!read.has(k)).map(k=>`<option value="${esc(k)}">#${esc(k)}</option>`).join('');
+ return `<form data-form="effect" data-card="${esc(c.id)}" class="stack"><h3>記憶を読む</h3>${ready?'':'<p class="slot-hint">交換の時間（40分）が終わると使えます。</p>'}<label class="field">読む記憶の番号<select name="number" ${ready?'':'disabled'}>${options}</select></label><button class="primary" ${ready?'':'disabled'}>この番号を読む（1回で捨て札）</button></form>`;
 }
 // 返してほしいカードは、自分が探している番号のボタンから選ぶ。手入力は「その他」のときだけ。
 function requestPicker(){
@@ -214,9 +245,9 @@ function requestPicker(){
 }
 function openCard(id){
  const c=S.me.hand.find(c=>c.id===id);if(!c)return;const play=S.phase==='play';
- const mode=c.kind==='effect'?'effect':'offer';
- const modes=[...(c.kind==='effect'?[['effect','効果を使う']]:[]),['offer','交換する'],['give','渡す']];
- $('cardDetail').innerHTML=`<div class="eyebrow">${c.kind==='b'?'MEMORY FRAGMENT':c.kind==='effect'?'EFFECT CARD':'UNREADABLE DATA'}</div><h2 class="${c.kind==='joker'?'corrupted-label':''}">${esc(cardLabel(c))}</h2>${c.protected?'<span class="shield">保護中</span>':''}<div class="dialog-card-preview">${c.kind==='b'?memoryArtHtml(c.id.replace(/-B$/,''),'B'):''}<div class="dialog-text">${cardBody(c)}</div></div><div class="card-action-tabs" role="group" aria-label="カードの操作">${modes.map(([value,label])=>`<button type="button" data-card-mode="${value}" aria-pressed="${mode===value}">${label}</button>`).join('')}</div>${c.kind==='effect'?`<section data-card-panel="effect">${effectForm(c)}</section>`:''}<section data-card-panel="offer" ${mode!=='offer'?'hidden':''}><form data-form="offer" data-card="${esc(c.id)}" class="stack"><h3>交換を申し込む</h3><label class="field">相手<select name="to">${seats()}</select></label>${requestPicker()}<button class="primary" ${!play?'disabled':''}>交換を申し込む</button></form></section><section data-card-panel="give" hidden><form data-form="give" data-card="${esc(c.id)}" class="stack"><h3>カードをそのまま渡す</h3><label class="field">渡す相手<select name="to" aria-label="カードを渡す相手">${seats()}</select></label><button class="primary" ${!play?'disabled':''}>そのまま渡す</button></form></section>`;
+ // 2026-11-19：交換（申し込み）をやめ、記憶のBと読取不能データは「渡す」だけ。閲覧カードは渡せない。
+ const action=c.kind==='effect'?`<section data-card-panel="effect">${effectForm(c)}</section>`:`<section data-card-panel="give"><form data-form="give" data-card="${esc(c.id)}" class="stack"><h3>このカードを渡す</h3><label class="field">渡す相手<select name="to" aria-label="カードを渡す相手">${seats()}</select></label><button class="primary" ${!play?'disabled':''}>渡す</button>${play?'':'<p class="muted">渡せるのは交換の時間中だけです。</p>'}</form></section>`;
+ $('cardDetail').innerHTML=`<div class="eyebrow">${c.kind==='b'?'MEMORY FRAGMENT':c.kind==='effect'?'EFFECT CARD':'UNREADABLE DATA'}</div><h2 class="${c.kind==='joker'?'corrupted-label':''}">${esc(cardLabel(c))}</h2><div class="dialog-card-preview">${c.kind==='b'?memoryArtHtml(c.id.replace(/-B$/,''),'B'):''}<div class="dialog-text">${cardBody(c)}</div></div>${action}`;
  memoryArt.hydrate($('cardDetail'));$('cardDialog').showModal();
 }
 // アルバムの枠をタップ：Aの全文と、復元していれば復元した記憶を見せる。
@@ -234,6 +265,8 @@ function renderHandoutCard(me){
 // 全員で共有する時系列。時刻のあるものは時刻順、時刻の分からないものは最後にまとめる。
 let timelineDraft={time:'',text:''};
 function timelineItem(x,locked){
+ // 最初から入っている記録（到着・鍵・低い音・死亡など）は、誰も直せない。
+ if(x.fixed)return `<li class="tl-item tl-fixed"><span class="tl-time">${x.time?esc(x.time):'--:--'}</span><div class="tl-body"><p>${esc(x.text)}</p><small>最初から分かっている記録</small></div></li>`;
  return `<li class="tl-item"><span class="tl-time">${x.time?esc(x.time):'--:--'}</span><div class="tl-body"><p>${esc(x.text)}</p><small>${esc(x.by)}が追加${x.editedBy?`・${esc(x.editedBy)}が修正`:''}</small></div>${locked?'':`<div class="tl-tools"><button type="button" class="small-button" data-action="timelineEdit" data-id="${esc(x.id)}">直す</button><button type="button" class="small-button" data-action="timelineRemove" data-id="${esc(x.id)}">消す</button></div>`}</li>`;
 }
 function renderTimeline(){
@@ -241,7 +274,7 @@ function renderTimeline(){
  const timed=items.filter(x=>x.time),untimed=items.filter(x=>!x.time);
  const form=locked?'':`<form data-form="timelineAdd" class="panel tl-form"><div class="tl-inputs"><label class="field tl-time-field">時刻<input type="time" name="time" value="${esc(timelineDraft.time)}" aria-label="時刻（分からなければ空欄）"></label><label class="field tl-text-field">出来事<input name="text" maxlength="200" required value="${esc(timelineDraft.text)}" placeholder="例：PC3が管理室に入った" aria-label="出来事"></label></div><div class="tl-form-foot"><small>時刻が分からなければ空欄のままで追加できます。</small><button class="primary">時系列に追加</button></div></form>`;
  const list=items.length?`<ol class="tl-list">${timed.map(x=>timelineItem(x,locked)).join('')}</ol>${untimed.length?`<h2 class="tl-sub">時刻が分からない出来事</h2><ol class="tl-list">${untimed.map(x=>timelineItem(x,locked)).join('')}</ol>`:''}`:'<div class="empty">まだ何もありません。分かった出来事を追加すると、全員の画面に並びます。</div>';
- return heading('SHARED TIMELINE','時系列','全員が同じ時系列を見ています。追加・修正・削除は誰でもでき、書いた人のPC番号が表示されます。')+form+list;
+ return heading('SHARED TIMELINE','時系列','全員が同じ時系列を見ています。最初から分かっている記録（到着・鍵・低い音・死亡）は入っています。追加・修正・削除は誰でもでき、書いた人のPC番号が表示されます。')+hintPanel()+form+list;
 }
 function openTimelineEdit(id){
  const x=(S.timeline||[]).find(x=>x.id===id);if(!x)return;
@@ -250,7 +283,7 @@ function openTimelineEdit(id){
 }
 function renderHost(){
  const r=remaining();
- $('host').innerHTML=`<div class="host-head"><div class="eyebrow">FACILITATOR / PRIVATE CONTROL</div><h1>進行画面 / オンライン版</h1><p><b>この画面は最後まで開いたままにしてください。</b>全員のカード操作と40分・5分の締め切りを、この画面が処理しています。閉じても部屋は残り、同じブラウザで開き直すと再開します。</p><p><button type="button" data-action="copyHost">進行画面のURLをコピー</button> <button type="button" data-action="wake">スリープ防止を有効にする</button></p><p>部屋 ${esc(S.id)} ／ ${names[S.phase]} ／ 配る${S.cardCount}枚・記憶${S.pairCount}組 <span class="timer" data-timer hidden></span></p></div><div class="panel"><h2>参加リンク</h2><p>各PCには、自分のリンクだけを「コピー」して送ってください。この進行画面で参加リンクを開かないでください（開いた端末にそのPCが固定されます）。進行画面のURLは共有しないでください。</p>${S.invites.map(p=>{const link=makeLink(S.id,p.token);return `<div class="invite"><b>PC${p.seat}</b><input readonly value="${esc(link)}" aria-label="PC${p.seat}の参加リンク"><button type="button" data-action="copyInvite" data-seat="${p.seat}">コピー</button></div>`;}).join('')}</div><div class="panel"><h2>進行</h2><div class="host-controls"><button class="primary" data-host-action="begin" ${S.phase!=='lobby'?'disabled':''}>開始してカードを配る（40分）</button><button data-host-action="endExchange" ${S.phase!=='play'?'disabled':''}>時間を待たずに終えて投票へ（返却する）</button><button data-host-action="finish" ${S.phase!=='vote'?'disabled':''}>投票を締め切る</button><button class="primary" data-host-action="reveal" data-quick="1" ${S.phase!=='finished'||(S.reveal?.step||0)>=S.revealTotal?'disabled':''}>${S.reveal?'結果発表：次を表示する':'結果発表を始める'}（${S.reveal?.step||0}/${S.revealTotal}）</button></div><p>${S.progress.map(p=>`PC${p.seat}：${p.tutorial?'導入済':'導入前'} / 手札${p.hand}枚 / 復元${p.restored}/${p.needed}${p.vote?' / 投票済':''}`).join('<br>')}</p>${S.results?`<p><b>投票結果</b>：${S.results.map(r=>`PC${r.seat} ${r.votes}票`).join(' ／ ')}</p>`:''}<p class="muted">プレイは40分。交換と議論はこの中で自由に行います。40分たつと自動で返却され、投票に移ります。投票は5分で自動的に締め切られます。この画面から先に締め切ることもできます。</p></div>${S.reveal?`<div class="panel host-reveal"><h2>参加者の画面に出ている結果発表（${S.reveal.step}/${S.revealTotal}）</h2>${renderReveal()}</div>`:S.phase==='finished'?'<div class="panel"><p class="muted">投票を締め切りました。「結果発表を始める」を押すと、全員の画面に1段ずつ結果が出ます（投票結果 → 事件記録 → 照合の手順 → 裏切り者 → 評価）。UZUの台詞は、画面の文をそのまま読みます。</p></div>':''}${S.returnLog.length?`<div class="panel"><h2>返却の記録</h2><p>${S.returnLog.map(r=>`#${esc(r.id)}→最後はPC${r.holder}`).join(' ／ ')}</p></div>`:''}<div class="panel"><h2>全員の時系列（${(S.timeline||[]).length}件）</h2>${(S.timeline||[]).length?`<ol class="tl-list">${S.timeline.map(x=>timelineItem(x,true)).join('')}</ol>`:'<p class="muted">まだ書き込みはありません。</p>'}</div><div class="panel"><h2>この試作のルール</h2><p>Wordの13章「記憶カード32組」をそのまま使用。各自のA（計32枚）は最初から手元にあり、奪われません。配るのはB32枚＋効果カード8枚（抜き取り2・追跡2・指名1・のぞき見1・保護1・攪乱1）＋ジョーカー1枚の41枚。自分のBは自分に配られず、手元に来るとその場で復元されます。データはFirebaseに保存されます。進行画面を閉じている間は、操作が待機します。</p></div><h2>登録済みの防犯カメラ</h2>${renderCameraRecords(cameraFilter)}`;
+ $('host').innerHTML=`<div class="host-head"><div class="eyebrow">FACILITATOR / PRIVATE CONTROL</div><h1>進行画面 / オンライン版</h1><p><b>この画面は最後まで開いたままにしてください。</b>全員のカード操作と40分・5分の締め切りを、この画面が処理しています。閉じても部屋は残り、同じブラウザで開き直すと再開します。</p><p><button type="button" data-action="copyHost">進行画面のURLをコピー</button> <button type="button" data-action="wake">スリープ防止を有効にする</button></p><p>部屋 ${esc(S.id)} ／ ${names[S.phase]} ／ 配る${S.cardCount}枚・記憶${S.pairCount}組 <span class="timer" data-timer hidden></span></p></div><div class="panel"><h2>参加リンク</h2><p>各PCには、自分のリンクだけを「コピー」して送ってください。この進行画面で参加リンクを開かないでください（開いた端末にそのPCが固定されます）。進行画面のURLは共有しないでください。</p>${S.invites.map(p=>{const link=makeLink(S.id,p.token);return `<div class="invite"><b>PC${p.seat}</b><input readonly value="${esc(link)}" aria-label="PC${p.seat}の参加リンク"><button type="button" data-action="copyInvite" data-seat="${p.seat}">コピー</button></div>`;}).join('')}</div><div class="panel"><h2>進行</h2><div class="host-controls"><button class="primary" data-host-action="begin" ${S.phase!=='lobby'?'disabled':''}>開始してカードを配る（40分）</button><button data-host-action="endExchange" ${S.phase!=='play'?'disabled':''}>交換を終えて投票へ（残りを返却する）</button><button data-host-action="finish" ${S.phase!=='vote'?'disabled':''}>投票を締め切る</button><button class="primary" data-host-action="reveal" data-quick="1" ${S.phase!=='finished'||(S.reveal?.step||0)>=S.revealTotal?'disabled':''}>${S.reveal?'結果発表：次を表示する':'結果発表を始める'}（${S.reveal?.step||0}/${S.revealTotal}）</button></div><p>${S.progress.map(p=>`PC${p.seat}：${p.tutorial?'導入済':'導入前'} / 手札${p.hand}枚 / 復元${p.restored}/${p.needed}${p.vote?' / 投票済':''}`).join('<br>')}</p>${S.results?`<p><b>投票結果</b>：${S.results.map(r=>`PC${r.seat} ${r.votes}票`).join(' ／ ')}</p>`:''}<p class="muted">プレイは40分。交換と議論はこの中で自由に行います。<b>40分たっても自動では投票に移りません。</b>「交換を終えて投票へ」を押すと、残りの記憶が持ち主へ返され、投票に移ります。投票は5分で自動的に締め切られます。この画面から先に締め切ることもできます。</p></div>${S.reveal?`<div class="panel host-reveal"><h2>参加者の画面に出ている結果発表（${S.reveal.step}/${S.revealTotal}）</h2>${renderReveal()}</div>`:S.phase==='finished'?'<div class="panel"><p class="muted">投票を締め切りました。「結果発表を始める」を押すと、全員の画面に1段ずつ結果が出ます（投票結果 → 事件記録 → 照合の手順 → 裏切り者 → 評価）。UZUの台詞は、画面の文をそのまま読みます。</p></div>':''}${S.returnLog.length?`<div class="panel"><h2>返却の記録</h2><p>${S.returnLog.map(r=>`#${esc(r.id)}→最後はPC${r.holder}`).join(' ／ ')}</p></div>`:''}<div class="panel"><h2>全員の時系列（${(S.timeline||[]).length}件）</h2>${(S.timeline||[]).length?`<ol class="tl-list">${S.timeline.map(x=>timelineItem(x,true)).join('')}</ol>`:'<p class="muted">まだ書き込みはありません。</p>'}</div><div class="panel"><h2>この試作のルール</h2><p>Wordの13章「記憶カード32組」をそのまま使用。各自のA（計32枚）は最初から手元にあり、奪われません。ランダムに配るのはB32枚＋読取不能データ1枚の33枚（3人が7枚、2人が6枚）。自分のBは自分に配られず、手元に来るとその場で復元されます。カードは「渡す」だけ（交換なし）。交換の時間が終わると各PCに「記憶の閲覧」2枚を配る（番号を選んで他の人の記憶を読む）。データはFirebaseに保存されます。進行画面を閉じている間は、操作が待機します。</p></div><h2>登録済みの防犯カメラ</h2>${renderCameraRecords(cameraFilter)}`;
 }
 document.addEventListener('click',async e=>{
  const cardMode=e.target.closest('[data-card-mode]');if(cardMode){$('cardDetail').querySelectorAll('[data-card-mode]').forEach(b=>b.setAttribute('aria-pressed',String(b===cardMode)));$('cardDetail').querySelectorAll('[data-card-panel]').forEach(p=>p.hidden=p.dataset.cardPanel!==cardMode.dataset.cardMode);return;}
@@ -265,6 +298,7 @@ document.addEventListener('click',async e=>{
  else if(a==='wake'){try{window.uzuWakeLock=await navigator.wakeLock.request('screen');toast('スリープ防止を有効にしました。この画面を開いたままにしてください。');}catch{toast('この環境では使えません。パソコンの設定でスリープを止めてください。');}}
  else if(a==='open')openCard(b.dataset.id);
  else if(a==='slotOpen')openSlot(b.dataset.key);
+ else if(a==='cameraRoom')openCameraRoom(b.dataset.room);
  else if(a==='timelineEdit')openTimelineEdit(b.dataset.id);
  else if(a==='timelineRemove'){if(confirm('この出来事を時系列から消しますか？　全員の画面から消えます。')&&await action({type:'timelineRemove',id:b.dataset.id}))toast('時系列から消しました。');}
  else if(a==='handFilter'){handFilter=b.dataset.kind;render(true);}
@@ -288,6 +322,9 @@ window.addEventListener('message',e=>{
  if(e.origin!==location.origin||e.source!==frame.contentWindow)return;
  const h=Number(e.data?.height);
  if(e.data?.type==='second-test-scene-height'&&Number.isFinite(h)&&h>=300&&h<=10000)frame.style.setProperty('--scene-height',`${Math.ceil(h)}px`);
+ // 3Dで部屋を選ぶと、その部屋の事件資料と防犯カメラを下に出す。
+ if(e.data?.type==='second-test-scene-room'){const id=e.data.room===null?null:String(e.data.room);if(id!==null&&!sceneRooms[id])return;sceneRoom=id;if(tab==='scene')$('sceneInfo').innerHTML=renderSceneInfo();}
+ if(e.data?.type==='second-test-scene-camera'){const r=sceneRooms[String(e.data.room)];if(r?.camera)openCameraRoom(r.camera);}
  if(e.data?.type==='second-test-scene-focus'&&tab==='scene'&&matchMedia('(max-width:760px)').matches){
   const y=Number(e.data.top);if(!Number.isFinite(y)||y<0||y>10000||!Number.isFinite(h)||h<1||h>2000)return;
   const top=frame.getBoundingClientRect().top+window.scrollY+y-Math.max(16,(window.innerHeight-90-h)/2);

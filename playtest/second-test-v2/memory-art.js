@@ -26,7 +26,7 @@ export class MemoryArtView {
     const key = c.id.replace(/-B$/, '');
     if (available.has(key)) allowed.add('m' + key + '-B.webp');
    }
-   for (const u of [...me.restored, ...me.shared]) if (available.has(u.key)) allowed.add('m' + u.key + '.webp');
+   for (const u of [...me.restored, ...me.shared, ...(me.viewed || [])]) if (available.has(u.key)) allowed.add('m' + u.key + '.webp');
   }
   for (const [name, record] of this.cache) if (scope !== this.scope || !allowed.has(name)) {
    if (record.url) URL.revokeObjectURL(record.url);

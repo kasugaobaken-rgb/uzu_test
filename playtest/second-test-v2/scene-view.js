@@ -7,6 +7,17 @@
  const exterior=window.FactoryExterior.create(C);
  const view={yaw:-.35,pitch:1,zoom:1,target:[0,0,0]},state={selected:null,wallHigh:true,labels:true,level:initialLevel,focusRoom:null,closeUp:false,previousLabels:true,structure:query.get('structure')==='exterior'?'exterior':'interior',renderMode:query.get('render')==='solid'?'solid':'particles'};
  let interiorSnapshot=null;
+ // 第二テストの画面に埋め込まれているときだけ、防犯カメラのマークを出す（記録のある6室。階段にはない）。
+ const embedded=window.parent!==window;let cams=[];
+ // 防犯カメラの取り付け位置（at：床の位置 x,z）と、写している方向（look：x,z）。画像の写り方に合わせた（2026-11-19）。
+ const cameraMounts=[
+  {room:'workshop',at:[-12.6,8.6],look:[-6,-4]},     // 階段側の隅から、シャッターを左に見て奥の入口へ
+  {room:'management',at:[2.5,9],look:[2.5,2.2]},     // サーバーラックの向かいの壁の中央。扉は右手
+  {room:'assembly',at:[5.6,-2.5],look:[1,-7.6]},     // 手前右の隅から、奥の壁の人型機械へ
+  {room:'reception',at:[13.2,-2.5],look:[8.6,-7.8]}, // 手前右の隅から、ソファ2脚へ
+  {room:'store1',at:[2.3,-.6],look:[8.2,-7.2]},      // 手前左の隅（左手前に棚）から、奥の棚へ
+  {room:'store2',at:[7.4,.4],look:[7.4,8.2]},        // 中央通路の端から、奥（台車側）へ
+ ];
  let width=0,height=0,scheduled=false,floors=[],labels=[],pointers=new Map(),gesture=null,tap=null;
  const reducedMotion=typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches;
  let assembleStarted=performance.now(),clouds={};
@@ -74,6 +85,35 @@
    if(state.level==='1'){for(const z of C.zones)label([z.name],z.position,null,true);for(const opening of C.openings)label([opening.name],opening.position,null,true);}
    if(state.level==='2'&&!state.focusRoom){label(['通路'],[.2,C.floorHeight+.1,0],null,true);label(['階段'],[-2.1,C.floorHeight+.1,8.15],null,true);}
   }
+  // 防犯カメラ（2026-11-19）：各部屋の防犯カメラの画像の写り方から、取り付け位置と向きを合わせた。
+  // 床に向きの扇形、天井近くにサイトの配色（ミント）のカメラを描く。タップすると親の画面がその部屋の画像を出す。
+  cams=[];
+  if(state.structure==='interior'&&embedded){
+   for(const cam of cameraMounts){
+    const r=C.rooms.find(r=>r.id===cam.room);if(!r)continue;
+    if(state.level!=='all'&&String(r.level)!==state.level)continue;if(state.focusRoom&&r.id!==state.focusRoom)continue;
+    const base=(r.level-1)*C.floorHeight,[cx,cz]=cam.at,[tx,tz]=cam.look,ang=Math.atan2(tz-cz,tx-cx),len=Math.hypot(tx-cx,tz-cz);
+    const floorPt=(a,l)=>project([cx+Math.cos(a)*l,base+.06,cz+Math.sin(a)*l]);
+    const apex=project([cx,base+.06,cz]),left=floorPt(ang-.42,len),right=floorPt(ang+.42,len),head=project([cx,base+2.55,cz]);
+    if(head.x<-30||head.x>width+30||head.y<-30||head.y>height+30)continue;
+    // 向きの扇形（床）
+    const g=ctx.createLinearGradient(apex.x,apex.y,(left.x+right.x)/2,(left.y+right.y)/2);g.addColorStop(0,'rgba(168,255,223,.30)');g.addColorStop(1,'rgba(168,255,223,0)');
+    ctx.beginPath();ctx.moveTo(apex.x,apex.y);ctx.lineTo(left.x,left.y);ctx.lineTo(right.x,right.y);ctx.closePath();ctx.fillStyle=g;ctx.fill();
+    ctx.setLineDash([3,4]);ctx.strokeStyle='rgba(168,255,223,.45)';ctx.lineWidth=1;ctx.beginPath();ctx.moveTo(left.x,left.y);ctx.lineTo(apex.x,apex.y);ctx.lineTo(right.x,right.y);ctx.stroke();ctx.setLineDash([]);
+    // 取り付け位置から床への線
+    ctx.strokeStyle='rgba(168,255,223,.55)';ctx.beginPath();ctx.moveTo(head.x,head.y);ctx.lineTo(apex.x,apex.y);ctx.stroke();
+    // カメラ本体（ミントの線・暗い地・録画ランプ）
+    const dir=Math.sign((left.x+right.x)/2-apex.x)||1,x=head.x,y=head.y;
+    cams.push({x,y,room:r.id});
+    ctx.save();ctx.shadowColor='#a8ffdf';ctx.shadowBlur=10;ctx.fillStyle='#071322ee';ctx.strokeStyle='#a8ffdf';ctx.lineWidth=1.5;
+    ctx.beginPath();ctx.rect(x-9,y-6,18,12);ctx.fill();ctx.stroke();
+    ctx.beginPath();ctx.moveTo(x+dir*9,y-3);ctx.lineTo(x+dir*14,y-6);ctx.lineTo(x+dir*14,y+6);ctx.lineTo(x+dir*9,y+3);ctx.closePath();ctx.fill();ctx.stroke();
+    ctx.shadowBlur=0;ctx.beginPath();ctx.arc(x,y,2.6,0,Math.PI*2);ctx.strokeStyle='#a8ffdf';ctx.stroke();
+    ctx.fillStyle='#ff8a7a';ctx.fillRect(x-dir*6-1.5,y-4,3,3);
+    ctx.font='400 8px Dot, monospace';ctx.textAlign='center';ctx.textBaseline='bottom';ctx.fillStyle='#a8ffdf';ctx.fillText('CAM',x,y-8);
+    ctx.restore();
+   }
+  }
   if(window.SecondTestBoard)window.SecondTestBoard.draw({ctx,C,view,width,height,state});
   ctx.font='9px Dot, monospace';ctx.textAlign='left';ctx.textBaseline='bottom';ctx.fillStyle='#8fa9b8';ctx.fillText((state.renderMode==='particles'?`POINTS ${cloud().length.toLocaleString()}`:'MODEL 01')+'   /   参考図ベース・寸法は仮設定',12,height-10);
  }
@@ -95,6 +135,8 @@
   document.body.dataset.room=state.focusRoom||'';$('reset').textContent=state.focusRoom?'室内全体へ ↺':'全体に戻す ↺';$('clearSelection').textContent=outside?'内装へ戻る':state.focusRoom?state.level+'階全体へ戻る':'選択を解除して全体へ';
   $('closeView').hidden=!state.focusRoom;$('closeView').setAttribute('aria-pressed',String(state.closeUp));
   for(const button of document.querySelectorAll('[data-room]'))button.setAttribute('aria-pressed',String(button.dataset.room===state.selected));
+  // 現場タブ：選んだ部屋を親の画面へ伝え、その部屋の事件資料と防犯カメラを下に出す（2026-11-19）。
+  if(window.parent!==window){const picked=outside?null:(state.focusRoom||state.selected||null);if(picked!==sync.lastRoom){sync.lastRoom=picked;window.parent.postMessage({type:'second-test-scene-room',room:picked},location.origin);}}
   const room=C.rooms.find(r=>r.id===state.selected);$('selectedTitle').textContent=outside?'工場 外観':room?room.name:state.level==='all'?'建物全体':state.level+'階全体';
   $('selectedDescription').textContent=outside?'金属外壁、大型シャッター、2か所の入口、屋上手すり、配管と換気設備を配置。内装の間取りと出入口位置を基準にした外観試作です。高さ・屋根・外構は仮設定です。':room?room.description:'手描きの間取りを基に配置しています。寸法と階高は仮設定です。';
   if(typeof history!=='undefined'&&history.replaceState){const params=new URLSearchParams(location.search);params.set('floor',state.level);params.set('render',state.renderMode==='solid'?'solid':'particles');if(outside)params.set('structure','exterior');else params.delete('structure');if(state.focusRoom)params.set('room',state.focusRoom);else params.delete('room');if(state.closeUp)params.set('view','close');else params.delete('view');history.replaceState(null,'',location.pathname+'?'+params.toString()+(location.hash||''));}
@@ -152,6 +194,8 @@
  function pick(p){
   if(window.SecondTestBoard?.pick(p))return;
   if(state.structure==='exterior')return;
+  const cam=cams.find(c=>Math.hypot(c.x-p.x,c.y-p.y)<20);
+  if(cam){window.parent.postMessage({type:'second-test-scene-camera',room:cam.room},location.origin);return;}
   if(state.labels){const hit=[...labels].reverse().find(l=>Math.abs(l.x-p.x)<l.bw/2&&Math.abs(l.y-p.y)<l.bh/2);if(hit){selectRoom(hit.room);return;}}
   const hit=[...floors].reverse().find(f=>C.inside(p,f.projected));if(hit)selectRoom(hit.room);
  }
